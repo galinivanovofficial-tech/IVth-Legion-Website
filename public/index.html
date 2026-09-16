@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IVth Legion — Elite Trading Community</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    :root {
+      --sc-canvas:   #060609;
+      --sc-surface:  #0e0e18;
+      --sc-ink:      #e8e8f0;
+      --sc-ink-soft: #7a7a98;
+      --sc-accent:   #c9a84c;
+      --sc-accent-2: #f6e27a;
+      --sc-accent-ink: #060609;
+      --sc-font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
+      --sc-font-text: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --sc-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --sc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --sc-measure: 62ch;
+      --sc-radius: 12px;
+      --sc-radius-lg: 20px;
+      --sc-gutter: clamp(16px, 3vw, 24px);
+      --sc-section: clamp(80px, 12vh, 160px);
+      --sc-green: #22c55e;
+      --sc-red:   #ef4444;
+      --border: rgba(255,255,255,0.06);
+    }
+    body {
+      background: var(--sc-canvas); color: var(--sc-ink-soft);
+      font-family: var(--sc-font-text);
+      line-height: 1.6; -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, h4 { font-family: var(--sc-font-display); color: var(--sc-ink); text-wrap: balance; }
+    p { text-wrap: pretty; }
+    a { color: var(--sc-accent); text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    ::selection { background: rgba(201,168,76,0.25); color: var(--sc-ink); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--sc-canvas); }
+    ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 3px; }
+
+    /* ── GRAIN ── */
+    .grain {
+      position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+      opacity: 0.04; mix-blend-mode: overlay;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px;
+    }
+
+    /* ── SCROLL PROGRESS ── */
+    .scroll-progress {
+      position: fixed; top: 0; left: 0; height: 2px; z-index: 9999;
+      background: linear-gradient(90deg, var(--sc-accent), var(--sc-accent-2), var(--sc-accent));
+      transform-origin: left; transform: scaleX(0); will-change: transform;
+    }
+
+    /* ── LOADER ── */
+    .loader {
+      position: fixed; inset: 0; z-index: 10001; background: #000;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 40px;
+      transition: opacity 1s var(--sc-ease-out), visibility 1s;
+    }
+    .loader.done { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-logo {
+      width: 90px; opacity: 0;
+      animation: loaderReveal 1.2s 0.3s var(--sc-ease-out) forwards;
+    }
+    .loader-logo img { width: 100%; height: auto; }
+    @keyframes loaderReveal {
+      0% { opacity: 0; filter: blur(20px) brightness(3); transform: scale(1.3) rotate(-5deg); }
+      50% { filter: blur(4px) brightness(1.5); }
+      100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1) rotate(0); }
+    }
+    .loader-line {
+      width: 80px; height: 1px; background: rgba(255,255,255,0.06); position: relative; overflow: hidden;
+    }
+    .loader-line::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, var(--sc-accent), transparent);
+      animation: loaderSweep 1.2s ease-in-out infinite;
+    }
+    @keyframes loaderSweep { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
+    .loader-text {
+      font-family: var(--sc-font-display); font-size: 9px; letter-spacing: 0.5em;
+      text-transform: uppercase; color: var(--sc-ink-soft); opacity: 0;
+      animation: loaderReveal 0.8s 0.6s var(--sc-ease-out) forwards;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      background: rgba(6,6,9,0.3); border-bottom: 1px solid transparent;
+      transition: background 0.5s var(--sc-ease-out), border-color 0.5s, box-shadow 0.5s;
+    }
+    nav.scrolled {
+      background: rgba(6,6,9,0.92);
+      border-bottom-color: var(--border);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 var(--sc-gutter);
+      display: flex; align-items: center; justify-content: space-between;
+      height: 72px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 14px; }
+    .nav-brand img { height: 28px; width: auto; }
+    .nav-brand span {
+      font-family: var(--sc-font-display); font-size: 14px; font-weight: 700;
+      letter-spacing: 0.14em; color: var(--sc-ink);
+    }
+    .nav-links { display: flex; align-items: center; gap: 36px; }
+    .nav-links a {
+      font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+      text-transform: uppercase; color: rgba(255,255,255,0.4);
+      transition: color 0.2s; position: relative;
+    }
+    .nav-links a::after {
+      content: ''; position: absolute; bottom: -6px; left: 50%; width: 0; height: 1px;
+      background: var(--sc-accent); transition: width 0.3s var(--sc-ease-out); transform: translateX(-50%);
+    }
+    .nav-links a:hover { color: var(--sc-ink); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--sc-accent) 0%, #b8932e 100%);
+      color: var(--sc-accent-ink) !important; font-weight: 700 !important;
+      font-size: 11px !important; letter-spacing: 0.1em;
+      transition: transform 0.3s var(--sc-ease-out), box-shadow 0.3s;
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(201,168,76,0.4); }
+    .nav-cta::after { display: none; }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; width: 36px; height: 36px; position: relative; }
+    .hamburger span { display: block; width: 20px; height: 1.5px; background: var(--sc-ink); position: absolute; left: 8px; transition: transform 0.3s, opacity 0.3s; }
+    .hamburger span:nth-child(1) { top: 12px; }
+    .hamburger span:nth-child(2) { top: 17px; }
+    .hamburger span:nth-child(3) { top: 22px; }
+
+    /* ── ACT 1: HERO — DEVICE: PARALLAX ── */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      text-align: center; position: relative; overflow: hidden;
+      padding: 120px var(--sc-gutter) 80px;
+    }
+    .hero-bg { position: absolute; inset: 0; z-index: 0; }
+    .hero-plane {
+      position: absolute; border-radius: 50%;
+      filter: blur(100px); opacity: 0.4; will-change: transform;
+    }
+    .hero-plane-1 {
+      width: 50vw; height: 50vw; top: -15%; left: 5%;
+      background: radial-gradient(circle, rgba(201,168,76,0.18) 0%, transparent 70%);
+    }
+    .hero-plane-2 {
+      width: 35vw; height: 35vw; top: 25%; right: -8%;
+      background: radial-gradient(circle, rgba(139,105,20,0.12) 0%, transparent 70%);
+    }
+    .hero-plane-3 {
+      width: 40vw; height: 40vw; bottom: -10%; left: 25%;
+      background: radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%);
+    }
+    .hero::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+      height: 200px; z-index: 1; pointer-events: none;
+      background: linear-gradient(to top, var(--sc-canvas), transparent);
+    }
+    .hero-content {
+      position: relative; z-index: 2; max-width: 880px;
+    }
+
+    /* Hero logo */
+    .hero-logo-wrap {
+      display: block; margin-bottom: 40px; position: relative;
+      opacity: 0; animation: logoIn 1.4s 0.6s var(--sc-ease-out) forwards;
+    }
+    @keyframes logoIn {
+      0% { opacity: 0; filter: blur(16px) brightness(2.5); transform: scale(1.15); }
+      60% { opacity: 1; filter: blur(2px) brightness(1.3); }
+      100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+    }
+    .hero-logo-img {
+      display: block; margin: 0 auto;
+      height: 140px; width: auto;
+    }
+    .logo-glow-wrap {
+      position: relative; display: inline-block;
+      animation: breathe 4s 2.5s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { filter: drop-shadow(0 0 4px rgba(201,168,76,0.12)) drop-shadow(0 0 12px rgba(201,168,76,0.06)); }
+      50% { filter: drop-shadow(0 0 10px rgba(201,168,76,0.3)) drop-shadow(0 0 30px rgba(201,168,76,0.15)); }
+    }
+    .logo-sheen {
+      position: absolute; inset: -12px; pointer-events: none; overflow: hidden;
+    }
+    .logo-sheen::after {
+      content: ''; position: absolute; top: -20%; left: -130%; width: 60%; height: 140%;
+      background: linear-gradient(105deg, transparent 30%, rgba(246,226,122,0.1) 46%, rgba(255,255,255,0.18) 50%, rgba(246,226,122,0.1) 54%, transparent 70%);
+      animation: sheen 6s 3s ease-in-out infinite;
+    }
+    @keyframes sheen { 0% { left: -130%; } 45% { left: 160%; } 100% { left: 160%; } }
+    .hero-logo-text {
+      margin-top: 14px; text-align: center;
+      opacity: 0; animation: textReveal 0.8s 1.1s var(--sc-ease-out) forwards;
+    }
+    @keyframes textReveal {
+      from { opacity: 0; letter-spacing: 0.4em; filter: blur(3px); }
+      to { opacity: 1; letter-spacing: 0.06em; filter: blur(0); }
+    }
+    .logo-iv {
+      font-family: var(--sc-font-display); font-weight: 700; font-size: 28px;
+      background: linear-gradient(135deg, #cb9b51, #f6e27a 45%, #f6f2c0 55%, #cb9b51);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-iv sup { font-size: 14px; vertical-align: super; }
+    .logo-legion {
+      font-family: var(--sc-font-text); font-weight: 800; font-size: 26px; letter-spacing: 0.12em;
+      background: linear-gradient(135deg, #cb9b51, #f6e27a 45%, #f6f2c0 55%, #cb9b51);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* Hero headline */
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 22px; margin-bottom: 36px; border-radius: 100px;
+      background: rgba(201,168,76,0.04); border: 1px solid rgba(201,168,76,0.1);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--sc-accent);
+      backdrop-filter: blur(12px);
+      opacity: 0; animation: fadeUp 0.7s 1.5s var(--sc-ease-out) forwards;
+    }
+    .hero-badge .pulse-dot {
+      width: 6px; height: 6px; background: var(--sc-green); border-radius: 50%;
+      box-shadow: 0 0 10px rgba(34,197,94,0.6);
+      animation: pulseDot 2s infinite;
+    }
+    @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+
+    .hero h1 {
+      font-size: clamp(2.6rem, 5.5vw, 4.2rem); font-weight: 900;
+      line-height: 1.04; margin-bottom: 28px; letter-spacing: -0.01em;
+    }
+    .hero-line { display: block; overflow: hidden; }
+    .hero-line-inner {
+      display: inline-block; transform: translateY(120%);
+      animation: lineUp 0.9s var(--sc-ease-out) forwards;
+    }
+    .hero-line:nth-child(1) .hero-line-inner { animation-delay: 1.6s; }
+    .hero-line:nth-child(2) .hero-line-inner { animation-delay: 1.75s; }
+    @keyframes lineUp { to { transform: translateY(0); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+
+    .hero-sub {
+      font-size: 17px; line-height: 1.75; color: var(--sc-ink-soft);
+      max-width: 560px; margin: 0 auto 44px;
+      opacity: 0; animation: fadeUp 0.8s 2s var(--sc-ease-out) forwards;
+    }
+    .hero-actions {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      opacity: 0; animation: fadeUp 0.8s 2.15s var(--sc-ease-out) forwards;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 15px 36px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
+      cursor: pointer; border: none; font-family: inherit;
+      position: relative; overflow: hidden; will-change: transform;
+      transition: transform 0.3s var(--sc-ease-out), box-shadow 0.3s;
+    }
+    .btn:focus-visible { outline: 2px solid var(--sc-accent); outline-offset: 3px; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--sc-accent), #b8932e);
+      color: var(--sc-accent-ink); box-shadow: 0 4px 20px rgba(201,168,76,0.25);
+    }
+    .btn-primary:hover { box-shadow: 0 12px 48px rgba(201,168,76,0.45); transform: translateY(-3px); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.02); color: var(--sc-ink);
+      border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px);
+    }
+    .btn-ghost:hover { border-color: var(--sc-accent); color: var(--sc-accent); background: rgba(201,168,76,0.04); transform: translateY(-3px); }
+
+    /* Hero stats (legacy — kept for counter JS) */
+    .hero-stat { text-align: center; }
+    .hero-stat .num {
+      font-family: var(--sc-font-display); font-size: 34px; font-weight: 700;
+      color: var(--sc-accent);
+    }
+    .hero-stat .label {
+      font-size: 10px; color: var(--sc-ink-soft); margin-top: 8px;
+      text-transform: uppercase; letter-spacing: 0.12em; font-weight: 500;
+    }
+
+    /* ── NEURAL NETWORK CANVAS ── */
+    #neuroCanvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    /* ── ACT 2: TICKER — TRANSITION BEAT ── */
+    .ticker-bar {
+      background: rgba(201,168,76,0.02); overflow: hidden; white-space: nowrap;
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 14px 0; position: relative; z-index: 2;
+    }
+    .ticker-track { display: inline-flex; gap: 48px; animation: tickScroll 45s linear infinite; }
+    @keyframes tickScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .ticker-item { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+    .ticker-item .sym { font-weight: 700; color: var(--sc-ink); letter-spacing: 0.04em; }
+    .ticker-item .price { color: var(--sc-ink-soft); }
+    .ticker-item .chg { font-weight: 600; font-size: 12px; }
+    .up { color: var(--sc-green); }
+    .dn { color: var(--sc-red); }
+    .ticker-sep { color: var(--sc-accent); opacity: 0.15; font-size: 6px; flex-shrink: 0; }
+
+    /* ── ACT 3: FEATURES — DEVICE: PIN (FORMATION) ── */
+    .features {
+      padding: var(--sc-section) 0; position: relative;
+      background: linear-gradient(180deg, var(--sc-canvas) 0%, var(--sc-surface) 8%, var(--sc-surface) 92%, var(--sc-canvas) 100%);
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 var(--sc-gutter); }
+    .features-header {
+      max-width: 560px; margin-bottom: 72px;
+    }
+    .section-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--sc-accent); margin-bottom: 16px;
+      display: inline-flex; align-items: center; gap: 12px;
+    }
+    .section-eyebrow::before {
+      content: ''; width: 20px; height: 1px; background: rgba(201,168,76,0.25);
+    }
+    .section-heading {
+      font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 700;
+      line-height: 1.12; margin-bottom: 20px;
+    }
+    .section-desc {
+      font-size: 15px; line-height: 1.8; color: var(--sc-ink-soft);
+      max-width: var(--sc-measure);
+    }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    }
+    .feature-card {
+      background: rgba(18,18,42,0.9); backdrop-filter: blur(12px);
+      border: 1px solid rgba(201,168,76,0.15); border-radius: var(--sc-radius-lg);
+      padding: 44px 32px; position: relative; overflow: hidden;
+      opacity: 0; will-change: transform, opacity;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .feature-card.rank-left { transform: translateX(-60px) rotate(-2deg); }
+    .feature-card.rank-right { transform: translateX(60px) rotate(2deg); }
+    .feature-card.rank-center { transform: translateY(40px); }
+    .feature-card.formed {
+      opacity: 1; transform: none;
+      transition: opacity 0.7s var(--sc-ease-out), transform 0.8s var(--sc-ease-out);
+    }
+    .feature-card::before {
+      content: ''; position: absolute; top: -1px; left: 30%; right: 30%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--sc-accent), transparent);
+      opacity: 0; transition: opacity 0.4s, left 0.4s, right 0.4s;
+    }
+    .feature-card:hover { border-color: rgba(201,168,76,0.12); }
+    .feature-card:hover::before { opacity: 1; left: 10%; right: 10%; }
+    .feature-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.02));
+      border: 1px solid rgba(201,168,76,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 28px;
+      transition: transform 0.4s var(--sc-ease-spring), box-shadow 0.4s;
+    }
+    .feature-card:hover .feature-icon {
+      transform: scale(1.1);
+      box-shadow: 0 8px 24px rgba(201,168,76,0.12);
+    }
+    .feature-card h3 {
+      font-family: var(--sc-font-text); font-size: 17px; font-weight: 600;
+      margin-bottom: 12px; color: var(--sc-ink); transition: color 0.2s;
+    }
+    .feature-card:hover h3 { color: var(--sc-accent); }
+    .feature-card p { font-size: 13.5px; line-height: 1.75; color: var(--sc-ink-soft); }
+
+    /* ── QUIET BEAT (SILENCE BEFORE PEAK) ── */
+    .quiet-beat {
+      padding: var(--sc-section) 0;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; min-height: 50vh; position: relative;
+    }
+    .quiet-beat::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(201,168,76,0.025) 0%, transparent 70%);
+    }
+    .quiet-beat blockquote {
+      font-family: var(--sc-font-display); font-size: clamp(1.4rem, 2.5vw, 2rem);
+      font-weight: 400; color: var(--sc-ink); line-height: 1.35;
+      max-width: 640px; position: relative;
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 1.2s var(--sc-ease-out), transform 1.2s var(--sc-ease-out);
+    }
+    .quiet-beat blockquote.visible { opacity: 1; transform: none; }
+    .quiet-beat blockquote::before {
+      content: ''; display: block; width: 40px; height: 1px;
+      background: var(--sc-accent); margin: 0 auto 32px; opacity: 0.4;
+    }
+    .quiet-beat cite {
+      display: block; margin-top: 24px; font-style: normal;
+      font-family: var(--sc-font-text); font-size: 12px;
+      color: var(--sc-accent); letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    /* ── ACT 4: THE LEGION (PEAK) — DEVICE: REVEAL ── */
+    .warroom {
+      padding: var(--sc-section) 0; position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--sc-canvas) 0%, var(--sc-surface) 10%, var(--sc-surface) 90%, var(--sc-canvas) 100%);
+    }
+    .warroom::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 70% 40%, rgba(201,168,76,0.06) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .warroom::after {
+      content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201,168,76,0.15), transparent);
+    }
+    .warroom-layout {
+      display: grid; grid-template-columns: 1fr 1.1fr;
+      gap: 64px; align-items: center;
+    }
+    .warroom-text { position: relative; z-index: 2; }
+    .warroom-text h2 {
+      font-size: clamp(1.8rem, 3vw, 2.4rem); line-height: 1.15; margin-bottom: 20px;
+    }
+    .warroom-text > p {
+      color: var(--sc-ink-soft); line-height: 1.8; margin-bottom: 36px; font-size: 14.5px;
+    }
+    .warroom-list { list-style: none; }
+    .warroom-list li {
+      padding: 12px 0; font-size: 14px; color: var(--sc-ink-soft);
+      display: flex; align-items: center; gap: 14px;
+      transition: color 0.2s, transform 0.3s var(--sc-ease-out);
+    }
+    .warroom-list li:hover { color: var(--sc-ink); transform: translateX(6px); }
+    .warroom-list .icon { font-size: 18px; flex-shrink: 0; }
+
+    .warroom-visual {
+      background: rgba(10,10,22,0.8); border: 1px solid rgba(201,168,76,0.12);
+      border-radius: var(--sc-radius-lg); padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+      position: relative; overflow: hidden;
+      opacity: 0; transform: translateX(40px) scale(0.96);
+      transition: opacity 1s var(--sc-ease-out), transform 1s var(--sc-ease-out);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 80px rgba(201,168,76,0.04);
+    }
+    .warroom-visual.revealed {
+      opacity: 1; transform: none;
+    }
+    .warroom-visual::after {
+      content: ''; position: absolute; inset: 0; border-radius: var(--sc-radius-lg);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      pointer-events: none;
+    }
+    .mock-chart {
+      flex: 1; background: linear-gradient(135deg, var(--sc-surface), var(--sc-canvas));
+      border-radius: 8px; position: relative; overflow: hidden; min-height: 200px;
+    }
+    .mock-chart-svg { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; }
+    .chart-line-draw { stroke-dasharray: 800; stroke-dashoffset: 800; transition: stroke-dashoffset 2.5s ease-out; }
+    .chart-line-draw.drawn { stroke-dashoffset: 0; }
+    .mock-row { display: flex; gap: 10px; }
+    .mock-tick {
+      flex: 1; padding: 12px 14px; background: rgba(22,22,36,0.5); border-radius: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .mock-tick:hover { border-color: rgba(201,168,76,0.2); background: rgba(201,168,76,0.02); }
+    .mock-tick .sym { color: var(--sc-ink); }
+
+    /* Risk Gauge */
+    .risk-gauge-panel { padding: 24px; background: rgba(6,6,9,0.5); border-radius: 12px; border: 1px solid var(--border); }
+    .risk-gauge-title { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: var(--sc-ink-soft); margin-bottom: 16px; text-transform: uppercase; }
+    .risk-gauge-bar { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #22c55e 0%, #eab308 35%, #f97316 65%, #ef4444 100%); overflow: visible; }
+    .risk-gauge-fill { position: absolute; inset: 0; border-radius: 4px; }
+    .risk-gauge-marker { position: absolute; top: -4px; width: 3px; height: 16px; background: var(--sc-ink); border-radius: 2px; transform: translateX(-50%); box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+    .risk-gauge-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; }
+    .risk-gauge-reading { display: flex; align-items: baseline; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .risk-val { font-family: var(--sc-font-display); font-size: 36px; font-weight: 700; color: var(--sc-accent); }
+    .risk-zone { font-size: 13px; color: var(--sc-ink-soft); }
+
+    /* ── HERO EDGE STRIP ── */
+    .hero-edge {
+      display: flex; gap: 40px; justify-content: center; flex-wrap: wrap;
+      margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--border);
+      opacity: 0; animation: fadeUp 0.8s 2.4s var(--sc-ease-out) forwards;
+    }
+    .edge-item {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .edge-icon { font-size: 20px; flex-shrink: 0; }
+    .edge-text { font-size: 13.5px; color: var(--sc-ink-soft); line-height: 1.5; }
+    .edge-text em { color: var(--sc-accent); font-style: normal; font-weight: 600; }
+
+    /* ── ACT 5: WHY THE LEGION ── */
+    .proof {
+      padding: 100px 0; position: relative;
+      background: linear-gradient(180deg, var(--sc-canvas) 0%, rgba(201,168,76,0.03) 50%, var(--sc-canvas) 100%);
+      border-top: 1px solid rgba(201,168,76,0.08); border-bottom: 1px solid rgba(201,168,76,0.08);
+    }
+    .proof::before {
+      content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 60px; height: 1px; background: linear-gradient(90deg, transparent, var(--sc-accent), transparent);
+    }
+    .proof-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 900px; margin: 0 auto; }
+    .proof-item {
+      text-align: left; display: flex; align-items: flex-start; gap: 20px;
+      padding: 32px 28px; border-radius: var(--sc-radius-lg);
+      background: rgba(14,14,24,0.5); border: 1px solid rgba(255,255,255,0.04);
+      transition: border-color 0.3s, transform 0.4s var(--sc-ease-out), box-shadow 0.4s;
+    }
+    .proof-item:hover {
+      border-color: rgba(201,168,76,0.12); transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .proof-num {
+      font-size: 28px; flex-shrink: 0; line-height: 1;
+      width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.02));
+      border: 1px solid rgba(201,168,76,0.1); border-radius: 14px;
+    }
+    .proof-label { font-size: 15px; color: var(--sc-ink); font-weight: 600; text-transform: none; letter-spacing: 0; line-height: 1.4; }
+    .proof-detail { display: block; font-size: 13px; font-weight: 400; color: var(--sc-ink-soft); margin-top: 6px; text-transform: none; letter-spacing: 0; line-height: 1.65; }
+
+    /* ── CTA STRIP ── */
+    .cta-strip {
+      padding: 80px 0; position: relative; text-align: center;
+      background: linear-gradient(180deg, var(--sc-canvas) 0%, rgba(201,168,76,0.04) 50%, var(--sc-canvas) 100%);
+      border-top: 1px solid rgba(201,168,76,0.06); border-bottom: 1px solid rgba(201,168,76,0.06);
+    }
+    .cta-strip::before {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 400px; height: 400px; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%);
+    }
+    .cta-strip h2 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem); margin-bottom: 16px; position: relative;
+    }
+    .cta-strip p {
+      font-size: 15px; color: var(--sc-ink-soft); margin-bottom: 36px; max-width: 480px; margin-left: auto; margin-right: auto;
+    }
+
+    /* ── ACT 6: PRICING — DEVICE: PARALLAX (DIFFERENTIAL) ── */
+    .pricing {
+      padding: var(--sc-section) 0; position: relative;
+      background: linear-gradient(180deg, var(--sc-canvas) 0%, var(--sc-surface) 15%, var(--sc-surface) 85%, var(--sc-canvas) 100%);
+    }
+    .pricing::before {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 600px; height: 600px; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 60%);
+    }
+    .pricing-header { text-align: center; margin-bottom: 72px; }
+    .pricing-header .section-desc { max-width: 480px; margin: 0 auto; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; max-width: 820px; margin: 0 auto; }
+    .price-card {
+      background: rgba(16,16,36,0.95); backdrop-filter: blur(20px);
+      border: 1.5px solid rgba(201,168,76,0.18); border-radius: var(--sc-radius-lg);
+      padding: 52px 40px; position: relative; overflow: hidden;
+      transition: border-color 0.3s, transform 0.4s var(--sc-ease-out), box-shadow 0.4s;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 60px rgba(201,168,76,0.03), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .price-card:hover {
+      border-color: rgba(201,168,76,0.35); transform: translateY(-8px);
+      box-shadow: 0 16px 60px rgba(0,0,0,0.7), 0 0 80px rgba(201,168,76,0.08), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .price-card.featured {
+      border-color: rgba(201,168,76,0.4);
+      background: linear-gradient(180deg, rgba(201,168,76,0.12) 0%, rgba(16,16,36,0.95) 40%);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 100px rgba(201,168,76,0.08), inset 0 1px 0 rgba(201,168,76,0.15);
+    }
+    .price-card.featured:hover {
+      box-shadow: 0 20px 70px rgba(0,0,0,0.7), 0 0 120px rgba(201,168,76,0.12), inset 0 1px 0 rgba(201,168,76,0.2);
+    }
+    .price-card.featured::before {
+      content: 'BEST VALUE'; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+      padding: 8px 28px; font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
+      background: linear-gradient(135deg, var(--sc-accent), #b8932e); color: var(--sc-accent-ink);
+      border-radius: 0 0 10px 10px;
+      box-shadow: 0 4px 16px rgba(201,168,76,0.3);
+    }
+    .price-name { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--sc-accent); margin-bottom: 28px; }
+    .price-amount { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+    .price-currency { font-size: 26px; font-weight: 700; color: var(--sc-accent); }
+    .price-number { font-family: var(--sc-font-display); font-size: 68px; font-weight: 700; color: var(--sc-ink); }
+    .price-period { font-size: 14px; color: var(--sc-ink-soft); }
+    .price-save { font-size: 13px; color: var(--sc-green); font-weight: 700; margin-bottom: 36px; min-height: 18px; letter-spacing: 0.01em; }
+    .price-features { list-style: none; margin-bottom: 40px; }
+    .price-features li {
+      padding: 10px 0; font-size: 13.5px; color: var(--sc-ink-soft);
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border); transition: color 0.2s, padding-left 0.3s;
+    }
+    .price-features li:last-child { border-bottom: none; }
+    .price-features li:hover { color: var(--sc-ink); padding-left: 4px; }
+    .price-features .check { color: var(--sc-accent); font-size: 14px; flex-shrink: 0; }
+    .price-btn {
+      width: 100%; padding: 16px; border-radius: 12px; font-size: 13px; font-weight: 700;
+      cursor: pointer; border: none; font-family: inherit; letter-spacing: 0.02em;
+      transition: transform 0.3s var(--sc-ease-out), box-shadow 0.3s;
+    }
+    .price-btn:focus-visible { outline: 2px solid var(--sc-accent); outline-offset: 3px; }
+    .price-btn:active { transform: scale(0.97); }
+    .price-btn.primary {
+      background: linear-gradient(135deg, var(--sc-accent), #b8932e); color: var(--sc-accent-ink);
+      box-shadow: 0 4px 24px rgba(201,168,76,0.3);
+    }
+    .price-btn.primary:hover { box-shadow: 0 12px 48px rgba(201,168,76,0.5); transform: translateY(-3px); }
+    .price-btn.secondary {
+      background: rgba(22,22,36,0.7); color: var(--sc-ink); border: 1px solid var(--border);
+    }
+    .price-btn.secondary:hover { border-color: var(--sc-accent); background: rgba(201,168,76,0.04); transform: translateY(-3px); }
+    .payment-methods { text-align: center; margin-top: 56px; font-size: 12px; color: var(--sc-ink-soft); }
+    .payment-icons { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+    .payment-icon {
+      padding: 8px 20px; background: rgba(22,22,36,0.5); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 11px; font-weight: 600; color: var(--sc-ink-soft);
+      backdrop-filter: blur(8px); transition: border-color 0.2s, color 0.2s;
+    }
+    .payment-icon:hover { border-color: rgba(201,168,76,0.2); color: var(--sc-accent); }
+
+    /* ── ACT 7: DISCLAIMER ── */
+    .disclaimer { padding: 80px 0; }
+    .disclaimer-box {
+      background: rgba(239,68,68,0.02); border: 1px solid rgba(239,68,68,0.08);
+      border-radius: var(--sc-radius-lg); padding: 44px 52px;
+      position: relative; overflow: hidden;
+    }
+    .disclaimer-box::before {
+      content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+      background: linear-gradient(to bottom, var(--sc-red), rgba(239,68,68,0.1));
+    }
+    .disclaimer-box h3 {
+      font-family: var(--sc-font-text); font-size: 15px; font-weight: 700;
+      color: var(--sc-red); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+    }
+    .disclaimer-box p { font-size: 13px; line-height: 1.85; color: var(--sc-ink-soft); margin-bottom: 12px; }
+    .disclaimer-box p:last-child { margin-bottom: 0; }
+
+    /* ── ACT 8: FOOTER (RESOLUTION) ── */
+    footer {
+      padding: 64px 0 40px; border-top: 1px solid var(--border);
+      background: #000; position: relative;
+    }
+    footer::before {
+      content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+      width: 200px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--sc-accent), transparent);
+    }
+    .footer-inner { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 48px; }
+    .footer-brand-wrap { max-width: 280px; }
+    .footer-brand-wrap img { height: 24px; margin-bottom: 14px; opacity: 0.35; }
+    .footer-brand-wrap p { font-size: 12px; color: rgba(255,255,255,0.25); line-height: 1.8; }
+    .footer-links { display: flex; gap: 56px; }
+    .footer-col h4 { font-family: var(--sc-font-text); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--sc-ink); margin-bottom: 18px; }
+    .footer-col a { display: block; font-size: 13px; color: rgba(255,255,255,0.35); padding: 5px 0; transition: color 0.2s, transform 0.3s var(--sc-ease-out); }
+    .footer-col a:hover { color: var(--sc-accent); transform: translateX(4px); }
+    .footer-bottom {
+      margin-top: 52px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.04);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; color: rgba(255,255,255,0.2);
+    }
+
+    /* ── SCROLL REVEAL (GENERAL) ── */
+    .sc-reveal {
+      opacity: 0; transform: translateY(32px);
+      transition: opacity 0.8s var(--sc-ease-out), transform 0.8s var(--sc-ease-out);
+    }
+    .sc-reveal.from-left { transform: translateX(-32px); }
+    .sc-reveal.from-right { transform: translateX(32px); }
+    .sc-reveal.from-scale { transform: scale(0.95); }
+    .sc-reveal.visible { opacity: 1; transform: none; }
+
+    /* ── MODALS ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(16px);
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: rgba(14,14,24,0.96); backdrop-filter: blur(24px);
+      border: 1px solid var(--border); border-radius: var(--sc-radius-lg);
+      padding: 52px 48px; width: 100%; max-width: 440px; position: relative;
+      animation: modalIn 0.5s var(--sc-ease-out);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+    }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(32px) scale(0.95); } to { opacity: 1; transform: none; } }
+    .modal-close {
+      position: absolute; top: 18px; right: 18px; background: none; border: none;
+      color: var(--sc-ink-soft); font-size: 22px; cursor: pointer; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px; transition: background 0.2s, color 0.2s, transform 0.3s;
+    }
+    .modal-close:hover { background: var(--sc-surface); color: var(--sc-ink); transform: rotate(90deg); }
+    .modal h2 { font-size: 26px; margin-bottom: 8px; text-align: center; }
+    .modal .subtitle { text-align: center; font-size: 13px; color: var(--sc-ink-soft); margin-bottom: 36px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sc-ink-soft); margin-bottom: 8px; }
+    .form-group input {
+      width: 100%; padding: 13px 16px; background: rgba(22,22,36,0.5);
+      border: 1px solid var(--border); border-radius: 10px; color: var(--sc-ink);
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-group input:focus { border-color: var(--sc-accent); box-shadow: 0 0 0 3px rgba(201,168,76,0.08); }
+    .form-group input::placeholder { color: rgba(255,255,255,0.18); }
+    .form-submit {
+      width: 100%; padding: 14px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, var(--sc-accent), #b8932e);
+      color: var(--sc-accent-ink); font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit; letter-spacing: 0.02em;
+      transition: transform 0.3s var(--sc-ease-out), box-shadow 0.3s; margin-top: 8px;
+    }
+    .form-submit:hover { box-shadow: 0 12px 40px rgba(201,168,76,0.35); transform: translateY(-2px); }
+    .form-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    .form-error { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.12); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--sc-red); margin-bottom: 16px; display: none; }
+    .form-toggle { text-align: center; margin-top: 28px; font-size: 13px; color: var(--sc-ink-soft); }
+    .form-toggle a { font-weight: 600; }
+    .form-check { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
+    .form-check input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--sc-accent); flex-shrink: 0; cursor: pointer; }
+    .form-check label { font-size: 12px; color: var(--sc-ink-soft); line-height: 1.6; text-transform: none; letter-spacing: 0; cursor: pointer; }
+    .tc-content { max-height: 60vh; overflow-y: auto; padding-right: 8px; }
+    .tc-content::-webkit-scrollbar { width: 3px; }
+    .tc-content::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.25); border-radius: 2px; }
+    .tc-content h3 { font-family: var(--sc-font-text); font-size: 14px; font-weight: 700; color: var(--sc-ink); margin: 24px 0 8px; }
+    .tc-content h3:first-child { margin-top: 0; }
+    .tc-content p, .tc-content li { font-size: 13px; line-height: 1.85; color: var(--sc-ink-soft); margin-bottom: 8px; }
+    .tc-content ul { padding-left: 20px; }
+
+    /* ── REDUCED MOTION ── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.15s !important; }
+      .grain, #neuroCanvas, .scroll-progress { display: none !important; }
+      .hero-logo-wrap, .hero-sub, .hero-actions, .hero-edge,
+      .hero-line-inner, .sc-reveal, .feature-card, .warroom-visual, .quiet-beat blockquote { opacity: 1 !important; transform: none !important; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 420px; }
+      .warroom-layout { grid-template-columns: 1fr; gap: 40px; }
+      .hero-edge { gap: 24px; }
+      .footer-inner { flex-direction: column; }
+      .proof-grid { grid-template-columns: 1fr; gap: 32px; }
+    }
+    @media (max-width: 640px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .hamburger { display: block; }
+      .nav-links.open {
+        display: flex; flex-direction: column;
+        position: absolute; top: 72px; left: 0; right: 0;
+        background: rgba(6,6,9,0.97); backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border); padding: 24px; gap: 16px;
+      }
+      .nav-links.open a::after { display: none; }
+      .hero-edge { flex-direction: column; gap: 16px; align-items: flex-start; }
+      .hero h1 { font-size: 2rem; }
+      .hero-logo-img { height: 100px; }
+      .modal { padding: 36px 24px; }
+      .warroom-layout { padding: 0; }
+      .disclaimer-box { padding: 28px; }
+      .footer-links { flex-direction: column; gap: 28px; }
+      .ticker-bar { display: none; }
+      .proof-grid { gap: 24px; }
+      .quiet-beat { min-height: 40vh; }
+      .cta-strip h2 { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- GRAIN OVERLAY -->
+<div class="grain"></div>
+
+<!-- SCROLL PROGRESS -->
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- LOADER -->
+<div class="loader" id="loader">
+  <div class="loader-logo"><img src="/logo-gold.png" alt="IV"></div>
+  <div class="loader-line"></div>
+  <div class="loader-text">Entering the Legion</div>
+</div>
+
+<!-- NEURAL NETWORK CANVAS -->
+<canvas id="neuroCanvas"></canvas>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <img src="/logo-white.png" alt="IVth Legion">
+      <span>IVth Legion</span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a href="#pricing">Pricing</a>
+      <a href="#features">Features</a>
+      <a href="#legion">The Legion</a>
+      <a href="javascript:void(0)" onclick="openModal('login')">Sign In</a>
+      <a href="javascript:void(0)" onclick="openModal('register')" class="nav-cta">Join the Legion</a>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<!-- ═══════════════ ACT 1: HERO — PARALLAX ═══════════════ -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-plane hero-plane-1" data-parallax="0.3"></div>
+    <div class="hero-plane hero-plane-2" data-parallax="0.2"></div>
+    <div class="hero-plane hero-plane-3" data-parallax="0.15"></div>
+  </div>
+  <div class="hero-content" data-parallax="0.05">
+    <div class="hero-logo-wrap" data-parallax="0.12">
+      <div class="logo-glow-wrap">
+        <img class="hero-logo-img" src="/logo-gold.png" alt="IVth Legion">
+        <div class="logo-sheen"></div>
+      </div>
+      <div class="hero-logo-text">
+        <span class="logo-iv">IV<sup>th</sup></span> <span class="logo-legion">LEGION</span>
+      </div>
+    </div>
+
+    <h1>
+      <span class="hero-line"><span class="hero-line-inner">Enter</span></span>
+      <span class="hero-line"><span class="hero-line-inner">The Legion</span></span>
+    </h1>
+    <p class="hero-sub">Cycle positioning. Confluence-based entries. Macro timing. Every asset class in one dashboard, one Telegram &mdash; run by a trader who trades the same setups he shares.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" onclick="openModal('register')">Join the Legion</button>
+      <a href="#features" class="btn btn-ghost">See What's Inside</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ TICKER ═══════════════ -->
+<div class="ticker-bar"><div class="ticker-track" id="tickerTrack"></div></div>
+
+<!-- ═══════════════ PRICING ═══════════════ -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="pricing-header">
+      <h2 class="section-heading sc-reveal">Built by a Trader, for Traders.</h2>
+      <p class="section-desc sc-reveal">Same service on both plans. Annual saves you 3 months.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card sc-reveal from-left">
+        <div class="price-name">Monthly</div>
+        <div class="price-amount"><span class="price-currency">&euro;</span><span class="price-number">89</span></div>
+        <div class="price-period">per month &mdash; cancel anytime</div><div class="price-save">&nbsp;</div>
+        <ul class="price-features">
+          <li><span class="check">&#10003;</span> Private Telegram group &mdash; daily chart-backed trade ideas</li>
+          <li><span class="check">&#10003;</span> Daily updates on crypto, stocks, commodities &amp; macro</li>
+          <li><span class="check">&#10003;</span> IVth Legion news channel &mdash; market events &amp; catalysts</li>
+          <li><span class="check">&#10003;</span> All proprietary indicators &amp; confluence models</li>
+        </ul>
+        <button class="price-btn secondary" onclick="startCheckout('monthly')">Start Monthly &mdash; &euro;89/mo</button>
+      </div>
+      <div class="price-card featured sc-reveal from-right">
+        <div class="price-name">Annual</div>
+        <div class="price-amount"><span class="price-currency">&euro;</span><span class="price-number">799</span></div>
+        <div class="price-period">per year &mdash; &euro;66/mo</div><div class="price-save">3 months free &mdash; same full access</div>
+        <ul class="price-features">
+          <li><span class="check">&#10003;</span> Private Telegram group &mdash; daily chart-backed trade ideas</li>
+          <li><span class="check">&#10003;</span> Daily updates on crypto, stocks, commodities &amp; macro</li>
+          <li><span class="check">&#10003;</span> IVth Legion news channel &mdash; market events &amp; catalysts</li>
+          <li><span class="check">&#10003;</span> All proprietary indicators &amp; confluence models</li>
+        </ul>
+        <button class="price-btn primary" onclick="startCheckout('yearly')">Join the Legion &mdash; &euro;799/yr</button>
+      </div>
+    </div>
+    <div class="payment-methods sc-reveal"><p>Secure payments powered by</p><div class="payment-icons"><div class="payment-icon">Stripe</div><div class="payment-icon">Revolut Pay</div><div class="payment-icon">Visa</div><div class="payment-icon">Mastercard</div></div></div>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 3: FEATURES — FORMATION ═══════════════ -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="features-header sc-reveal">
+      <div class="section-eyebrow">The Arsenal</div>
+      <h2 class="section-heading">What the Legion Runs On</h2>
+      <p class="section-desc">Not repackaged TradingView scripts. These are proprietary models built from years of live trading &mdash; and the person who built them trades with them every single day.</p>
+    </div>
+    <div class="features-grid" id="formationGrid">
+      <div class="feature-card rank-left"><div class="feature-icon">&#x1F4CA;</div><h3>0-to-1 Cycle Risk Score</h3><p>A single number that tells you where BTC sits in the cycle &mdash; accumulation, mid-run, or euphoria. Built on on-chain data and historical fractals from 2018 and 2022. When this reads 0.85+, we scale out. When it's under 0.3, we size up. No guesswork.</p></div>
+      <div class="feature-card rank-center"><div class="feature-icon">&#x1F3AF;</div><h3>Confluence-Only Entries</h3><p>We don't trade one indicator. We stack 4+ signals &mdash; risk score, momentum, key support/resistance bands, and on-chain flow &mdash; and only enter when they agree. Most setups get rejected. That's the point.</p></div>
+      <div class="feature-card rank-right"><div class="feature-icon">&#x1F30D;</div><h3>Every Market, One Thesis</h3><p>BTC to uranium to S&amp;P to oil. Same macro framework applied everywhere. While crypto-only groups miss the equity rotation and stock groups miss the halving cycle, we trade the full picture.</p></div>
+      <div class="feature-card rank-right"><div class="feature-icon">&#x1F4E1;</div><h3>Charts First, Always</h3><p>Every Telegram post comes with an annotated chart. No "BTC looks bullish" one-liners. You see the exact levels, the exact confluences, and the reasoning &mdash; so you learn the framework, not just follow calls.</p></div>
+      <div class="feature-card rank-center"><div class="feature-icon">&#x1F4C5;</div><h3>Never Trade into an Event Blind</h3><p>FOMC, CPI, NFP, OPEX, earnings &mdash; all flagged with pre/post-market timing. Dual Fear &amp; Greed gauges for crypto and traditional markets. You'll know what's coming before the candle prints.</p></div>
+      <div class="feature-card rank-left"><div class="feature-icon">&#x26A1;</div><h3>See What Market Makers See</h3><p>Open interest shifts, funding rate extremes, liquidation clusters, options max pain, and stablecoin flows into exchanges. The data retail ignores is the data that moves price.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ QUIET BEAT (SILENCE BEFORE PEAK) ═══════════════ -->
+<section class="quiet-beat">
+  <div class="container">
+    <blockquote>
+      Most traders guess. We read the data,<br>build the models, and wait for the setup.
+      <cite>The IVth Legion</cite>
+    </blockquote>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 4: WAR ROOM (PEAK) — REVEAL ═══════════════ -->
+<section class="warroom" id="legion">
+  <div class="container">
+    <div class="warroom-layout">
+      <div class="warroom-text sc-reveal">
+        <div class="section-eyebrow">The Legion Dashboard</div>
+        <h2>One Screen. Every Edge.</h2>
+        <p>Not a generic watchlist. A purpose-built command center with the exact data feeds, models, and calendars we trade from every single day.</p>
+        <ul class="warroom-list">
+          <li><span class="icon">&#x1F30D;</span> Crypto, stocks, commodities, nuclear &mdash; all live</li>
+          <li><span class="icon">&#x1F4CA;</span> BTC Risk Metric &amp; cycle positioning at a glance</li>
+          <li><span class="icon">&#x1F4C5;</span> Earnings calendar with pre/post-market flags</li>
+          <li><span class="icon">&#x1F30D;</span> Macro events: FOMC, CPI, NFP, OPEX &mdash; auto-updated</li>
+          <li><span class="icon">&#x1F525;</span> Dual Fear &amp; Greed gauges (Crypto + CNN)</li>
+          <li><span class="icon">&#x26A1;</span> Derivatives: OI, funding, liquidations, max pain</li>
+        </ul>
+      </div>
+      <div class="warroom-visual" id="warVisual">
+        <div class="risk-gauge-panel">
+          <div class="risk-gauge-title">BTC CYCLE RISK</div>
+          <div class="risk-gauge-bar">
+            <div class="risk-gauge-fill" style="width: 42%"></div>
+            <div class="risk-gauge-marker" style="left: 42%"></div>
+          </div>
+          <div class="risk-gauge-labels"><span class="up">Accumulation</span><span class="dn">Euphoria</span></div>
+          <div class="risk-gauge-reading"><span class="risk-val">0.42</span><span class="risk-zone">Mid-Cycle &mdash; Room to Run</span></div>
+        </div>
+        <div class="mock-row">
+          <div class="mock-tick"><span class="sym">BTC</span><span class="chg up" id="liveBtc">--</span></div>
+          <div class="mock-tick"><span class="sym">24h</span><span class="chg" id="liveBtcChg">--</span></div>
+          <div class="mock-tick"><span class="sym">F&amp;G</span><span class="chg" id="liveFng" style="color:var(--sc-accent)">--</span></div>
+        </div>
+        <div class="mock-row">
+          <div class="mock-tick"><span class="sym">FOMC</span><span class="chg" id="liveFormc" style="color:var(--sc-ink-soft)">--</span></div>
+          <div class="mock-tick"><span class="sym">OPEX</span><span class="chg" id="liveOpex" style="color:var(--sc-ink-soft)">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 5: WHY THE LEGION ═══════════════ -->
+<section class="proof">
+  <div class="container">
+    <div class="pricing-header" style="margin-bottom:56px">
+      <div class="section-eyebrow">Why the Legion</div>
+      <h2 class="section-heading sc-reveal">Built Different. On Purpose.</h2>
+    </div>
+    <div class="proof-grid">
+      <div class="proof-item sc-reveal"><div class="proof-num" data-text="&#x1F3AF;">&#x1F3AF;</div><div class="proof-label">Cycle Timing Models<br><span class="proof-detail">Know when BTC is overheated or bottoming &mdash; before the crowd catches on</span></div></div>
+      <div class="proof-item sc-reveal"><div class="proof-num" data-text="&#x1F30D;">&#x1F30D;</div><div class="proof-label">Full Market, One Dashboard<br><span class="proof-detail">Crypto, equities, commodities, nuclear, macro &mdash; wherever the setup is, we're there</span></div></div>
+      <div class="proof-item sc-reveal"><div class="proof-num" data-text="&#x1F4AC;">&#x1F4AC;</div><div class="proof-label">Small &amp; Serious<br><span class="proof-detail">Not a 50k Discord of noise. A private channel where every post has a chart behind it</span></div></div>
+      <div class="proof-item sc-reveal"><div class="proof-num" data-text="&#x1F6E0;">&#x1F6E0;</div><div class="proof-label">Builder-Trader<br><span class="proof-detail">The person who built the indicators trades with them. Every day. Same skin in the game</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CTA STRIP ═══════════════ -->
+<section class="cta-strip">
+  <div class="container">
+    <h2 class="sc-reveal">Stop Watching. Start Trading with an Edge.</h2>
+    <p class="sc-reveal">Join a small, focused group of traders who use data, models, and confluences to trade every market.</p>
+    <div class="hero-actions sc-reveal" style="opacity:1;animation:none">
+      <button class="btn btn-primary" onclick="openModal('register')">Join the Legion</button>
+      <a href="https://t.me/+llzZC8AZ7Q9lYjc0" target="_blank" rel="noopener" class="btn btn-ghost">Preview on Telegram</a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════ ACT 7: DISCLAIMER ═══════════════ -->
+<section class="disclaimer" id="disclaimer"><div class="container"><div class="disclaimer-box sc-reveal">
+  <h3>&#x26A0; Risk Disclaimer &amp; Important Notice</h3>
+  <p><strong>IVth Legion is NOT a financial advisor.</strong> Nothing on this platform constitutes financial, investment, tax, or legal advice. All content, including trade ideas, market analysis, indicators, signals, and educational material, is provided for informational and educational purposes only.</p>
+  <p><strong>Trading and investing in financial markets, including cryptocurrencies, stocks, derivatives, and forex, carries substantial risk of loss.</strong> You could lose some or all of your invested capital. Past performance does not guarantee future results.</p>
+  <p>You should only trade with money you can afford to lose. Always conduct your own research (DYOR) and consider seeking advice from a licensed financial professional before making any investment decisions.</p>
+  <p>Cryptocurrency markets are highly volatile and unregulated in many jurisdictions. Leveraged trading amplifies both gains and losses. IVth Legion, its operators, and contributors shall not be liable for any losses incurred from trading or investment decisions made based on the information provided through this platform.</p>
+</div></div></section>
+
+<!-- ═══════════════ ACT 8: FOOTER (RESOLUTION) ═══════════════ -->
+<footer><div class="container">
+  <div class="footer-inner">
+    <div class="footer-brand-wrap">
+      <img src="/logo-white.png" alt="IVth Legion">
+      <p>Proprietary indicators, live data, and a private Telegram &mdash; built by a trader who uses it every day.</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col"><h4>Platform</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#legion">The Legion</a></div>
+      <div class="footer-col"><h4>Legal</h4><a href="javascript:void(0)" onclick="openModal('terms')">Terms &amp; Conditions</a><a href="javascript:void(0)" onclick="openModal('privacy')">Privacy Policy</a><a href="#disclaimer">Risk Disclaimer</a></div>
+      <div class="footer-col"><h4>Community</h4><a href="https://t.me/+llzZC8AZ7Q9lYjc0" target="_blank" rel="noopener">Telegram Channel</a><a href="javascript:void(0)" onclick="openModal('login')">Sign In</a><a href="javascript:void(0)" onclick="openModal('register')">Create Account</a></div>
+    </div>
+  </div>
+  <div class="footer-bottom"><span>&copy; 2026 IVth Legion. All rights reserved.</span><span>This is not financial advice.</span></div>
+</div></footer>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+<div class="modal-overlay" id="loginModal"><div class="modal">
+  <button class="modal-close" onclick="closeModals()">&times;</button>
+  <h2>Welcome Back</h2><p class="subtitle">Sign in to access your dashboard</p>
+  <div class="form-error" id="loginError"></div>
+  <form id="loginForm" onsubmit="return handleLogin(event)">
+    <div class="form-group"><label>Email</label><input type="email" name="email" required placeholder="your@email.com" autocomplete="email"/></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required placeholder="Enter your password" autocomplete="current-password"/></div>
+    <button type="submit" class="form-submit" id="loginBtn">Sign In</button>
+  </form>
+  <div class="form-toggle">Don't have an account? <a href="javascript:void(0)" onclick="switchModal('register')">Create one</a></div>
+</div></div>
+
+<div class="modal-overlay" id="registerModal"><div class="modal">
+  <button class="modal-close" onclick="closeModals()">&times;</button>
+  <h2>Join the Legion</h2><p class="subtitle">Create your account to get started</p>
+  <div class="form-error" id="registerError"></div>
+  <form id="registerForm" onsubmit="return handleRegister(event)">
+    <div class="form-group"><label>Full Name</label><input type="text" name="name" required placeholder="Your name" autocomplete="name"/></div>
+    <div class="form-group"><label>Email</label><input type="email" name="email" required placeholder="your@email.com" autocomplete="email"/></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8" placeholder="Min. 8 characters" autocomplete="new-password"/></div>
+    <div class="form-group"><label>Telegram Username (optional)</label><input type="text" name="telegram_username" placeholder="@yourusername"/></div>
+    <div class="form-check"><input type="checkbox" id="agreeTerms" required/><label for="agreeTerms">I agree to the <a href="javascript:void(0)" onclick="openModal('terms')">Terms &amp; Conditions</a> and acknowledge the <a href="#disclaimer">Risk Disclaimer</a>. I understand that IVth Legion does not provide financial advice.</label></div>
+    <button type="submit" class="form-submit" id="registerBtn">Create Account</button>
+  </form>
+  <div class="form-toggle">Already have an account? <a href="javascript:void(0)" onclick="switchModal('login')">Sign in</a></div>
+</div></div>
+
+<div class="modal-overlay" id="termsModal"><div class="modal" style="max-width:600px">
+  <button class="modal-close" onclick="closeModals()">&times;</button>
+  <h2>Terms &amp; Conditions</h2><p class="subtitle">Last updated: September 2026</p>
+  <div class="tc-content">
+    <h3>1. Acceptance of Terms</h3><p>By accessing or using the IVth Legion platform ("Service"), you agree to be bound by these Terms and Conditions. If you do not agree, do not use the Service.</p>
+    <h3>2. Service Description</h3><p>IVth Legion provides market analytics, trading tools, educational content, and community access through a subscription-based membership.</p>
+    <h3>3. Not Financial Advice</h3><p>The Service is for informational and educational purposes only. IVth Legion is not a registered investment adviser, broker-dealer, or financial planner. No content on this platform constitutes a recommendation to buy, sell, or hold any financial instrument.</p>
+    <h3>4. Subscription &amp; Billing</h3><ul><li>Monthly plan: &euro;89/month, billed monthly.</li><li>Annual plan: &euro;799/year, billed annually.</li><li>Subscriptions auto-renew unless cancelled before the renewal date.</li><li>Payments are processed securely through Stripe and/or Revolut Pay.</li><li>Refunds are at the sole discretion of IVth Legion.</li></ul>
+    <h3>5. Account Responsibilities</h3><p>You are responsible for maintaining the confidentiality of your account credentials. Sharing your account or Telegram access with non-members is prohibited and may result in immediate termination without refund.</p>
+    <h3>6. Intellectual Property</h3><p>All proprietary indicators, analysis, code, and content are the intellectual property of IVth Legion. Reproduction, redistribution, or commercial use without written consent is prohibited.</p>
+    <h3>7. Risk Acknowledgement</h3><p>By using the Service, you acknowledge that trading and investing in financial markets carries substantial risk. You may lose some or all of your investment. Past performance is not indicative of future results.</p>
+    <h3>8. Limitation of Liability</h3><p>IVth Legion, its operators, contributors, and affiliates shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from the use of the Service.</p>
+    <h3>9. Termination</h3><p>We reserve the right to suspend or terminate your access at any time for violation of these terms, at our sole discretion.</p>
+    <h3>10. Modifications</h3><p>We may update these Terms at any time. Continued use of the Service after changes constitutes acceptance of the new Terms.</p>
+    <h3>11. Governing Law</h3><p>These Terms shall be governed by and construed in accordance with applicable laws. Any disputes shall be resolved through binding arbitration.</p>
+    <h3>12. Contact</h3><p>For questions regarding these Terms, contact us through the platform or via our Telegram community.</p>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="privacyModal"><div class="modal" style="max-width:600px">
+  <button class="modal-close" onclick="closeModals()">&times;</button>
+  <h2>Privacy Policy</h2><p class="subtitle">Last updated: September 2026</p>
+  <div class="tc-content">
+    <h3>1. Information We Collect</h3><p>We collect your email address, name, and optional Telegram username when you register. Payment information is processed directly by Stripe or Revolut and is never stored on our servers.</p>
+    <h3>2. How We Use Your Data</h3><ul><li>To provide and maintain the Service.</li><li>To manage your subscription and billing.</li><li>To grant access to the Telegram community.</li><li>To communicate service updates and important notices.</li></ul>
+    <h3>3. Data Security</h3><p>Passwords are hashed using scrypt. Sessions are signed with HMAC-SHA256. We use HTTPS in production and apply standard security headers. We do not sell or share your data with third parties for marketing purposes.</p>
+    <h3>4. Third-Party Services</h3><p>We use Stripe and Revolut for payment processing, and Telegram for community access. Each operates under their own privacy policies.</p>
+    <h3>5. Your Rights</h3><p>You may request deletion of your account and associated data at any time by contacting us.</p>
+    <h3>6. Cookies</h3><p>We use a single HTTP-only session cookie for authentication. No tracking cookies or third-party analytics scripts are used.</p>
+  </div>
+</div></div>
+
+<script>
+// ── LOADER ──
+window.addEventListener('load', () => { setTimeout(() => document.getElementById('loader').classList.add('done'), 1600); });
+
+// ── SCROLL PROGRESS ──
+window.addEventListener('scroll', () => {
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  document.getElementById('scrollProgress').style.transform = 'scaleX(' + (h > 0 ? window.scrollY / h : 0) + ')';
+}, { passive: true });
+
+// ── NEURAL NETWORK ──
+(function() {
+  var c = document.getElementById('neuroCanvas'), ctx = c.getContext('2d');
+  var w, h, nodes = [], mouse = { x: -1e4, y: -1e4 };
+  var mob = window.innerWidth < 900;
+  var N = mob ? 50 : 120;
+  var DIST = mob ? 120 : 180;
+  var MR = 250;
+  var G = { r: 201, g: 168, b: 76 };
+
+  function resize() { w = c.width = window.innerWidth; h = c.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (var i = 0; i < N; i++) {
+    nodes.push({ x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
+      baseR: Math.random() * 1.8 + 0.6, r: 0, pulse: 0, energy: 0 });
+  }
+
+  document.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener('mouseleave', function() { mouse.x = -1e4; mouse.y = -1e4; });
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    for (var i = 0; i < nodes.length; i++) {
+      var p = nodes[i];
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) { p.x = 0; p.vx *= -1; }
+      if (p.x > w) { p.x = w; p.vx *= -1; }
+      if (p.y < 0) { p.y = 0; p.vy *= -1; }
+      if (p.y > h) { p.y = h; p.vy *= -1; }
+
+      var dm = Math.hypot(p.x - mouse.x, p.y - mouse.y);
+      var mi = dm < MR ? 1 - dm / MR : 0;
+      p.energy += (mi - p.energy) * 0.08;
+      p.pulse += 0.04;
+      p.r = p.baseR + p.energy * 3 + Math.sin(p.pulse) * 0.3;
+
+      for (var j = i + 1; j < nodes.length; j++) {
+        var q = nodes[j];
+        var d = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d > DIST) continue;
+        var lf = 1 - d / DIST;
+        var bn = p.energy + q.energy;
+        var a = 0.03 * lf + Math.min(0.35, bn * 0.25 * lf);
+        if (a < 0.005) continue;
+
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+        if (bn > 0.3) {
+          var gr = ctx.createLinearGradient(p.x, p.y, q.x, q.y);
+          gr.addColorStop(0, 'rgba(' + G.r + ',' + G.g + ',' + G.b + ',' + (a * p.energy * 2) + ')');
+          gr.addColorStop(0.5, 'rgba(246,226,122,' + a + ')');
+          gr.addColorStop(1, 'rgba(' + G.r + ',' + G.g + ',' + G.b + ',' + (a * q.energy * 2) + ')');
+          ctx.strokeStyle = gr; ctx.lineWidth = 0.5 + bn * 0.8;
+        } else {
+          ctx.strokeStyle = 'rgba(' + G.r + ',' + G.g + ',' + G.b + ',' + a + ')';
+          ctx.lineWidth = 0.4;
+        }
+        ctx.stroke();
+      }
+
+      var na = 0.08 + p.energy * 0.7;
+      if (p.energy > 0.2) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 6, 0, 6.283);
+        ctx.fillStyle = 'rgba(' + G.r + ',' + G.g + ',' + G.b + ',' + (p.energy * 0.08) + ')';
+        ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283);
+      ctx.fillStyle = 'rgba(' + G.r + ',' + G.g + ',' + G.b + ',' + na + ')';
+      ctx.fill();
+      if (p.energy > 0.5) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.5, 0, 6.283);
+        ctx.fillStyle = 'rgba(246,242,192,' + (p.energy * 0.6) + ')';
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── PARALLAX ENGINE ──
+(function() {
+  var els = document.querySelectorAll('[data-parallax]');
+  window.addEventListener('scroll', function() {
+    var y = window.scrollY;
+    if (y > window.innerHeight * 1.2) return;
+    for (var i = 0; i < els.length; i++) {
+      var rate = parseFloat(els[i].dataset.parallax);
+      els[i].style.transform = 'translateY(' + (y * rate) + 'px)';
+    }
+  }, { passive: true });
+})();
+
+// ── FORMATION (SIGNATURE MOVE) ──
+(function() {
+  var grid = document.getElementById('formationGrid');
+  if (!grid) return;
+  var cards = grid.querySelectorAll('.feature-card');
+  var formed = false;
+
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (!e.isIntersecting || formed) return;
+      formed = true;
+      for (var i = 0; i < cards.length; i++) {
+        (function(card, idx) {
+          setTimeout(function() { card.classList.add('formed'); }, idx * 120);
+        })(cards[i], i);
+      }
+      obs.disconnect();
+    });
+  }, { threshold: 0.15 });
+  obs.observe(grid);
+})();
+
+// ── SCROLL REVEALS ──
+(function() {
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (!e.isIntersecting) return;
+      var siblings = e.target.parentElement ? Array.from(e.target.parentElement.children).filter(function(c) { return c.classList.contains('sc-reveal'); }) : [];
+      var idx = siblings.indexOf(e.target);
+      setTimeout(function() { e.target.classList.add('visible'); }, Math.max(0, idx) * 80);
+      obs.unobserve(e.target);
+    });
+  }, { threshold: 0.06, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.sc-reveal').forEach(function(el) { obs.observe(el); });
+})();
+
+// ── QUIET BEAT REVEAL ──
+(function() {
+  var bq = document.querySelector('.quiet-beat blockquote');
+  if (!bq) return;
+  new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) bq.classList.add('visible');
+  }, { threshold: 0.3 }).observe(bq);
+})();
+
+// ── WAR ROOM REVEAL (PEAK) ──
+(function() {
+  var vis = document.getElementById('warVisual');
+  if (!vis) return;
+  new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) {
+      vis.classList.add('revealed');
+      setTimeout(function() {
+        var line = vis.querySelector('.chart-line-draw');
+        if (line) line.classList.add('drawn');
+      }, 400);
+    }
+  }, { threshold: 0.2 }).observe(vis);
+})();
+
+// ── COUNTERS ──
+(function() {
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (!e.isIntersecting) return;
+      var el = e.target, target = parseInt(el.dataset.count), suffix = el.dataset.suffix || '';
+      if (!target) return;
+      var cur = 0, step = Math.ceil(target / 30);
+      var iv = setInterval(function() { cur += step; if (cur >= target) { cur = target; clearInterval(iv); } el.textContent = cur + suffix; }, 35);
+      obs.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('[data-count]').forEach(function(c) { obs.observe(c); });
+})();
+
+// ── TICKER (LIVE) ──
+(function() {
+  var syms = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT','ADAUSDT','DOGEUSDT','AVAXUSDT','LINKUSDT','DOTUSDT','MATICUSDT','ATOMUSDT'];
+  var names = { BTCUSDT:'BTC', ETHUSDT:'ETH', SOLUSDT:'SOL', XRPUSDT:'XRP', BNBUSDT:'BNB', ADAUSDT:'ADA', DOGEUSDT:'DOGE', AVAXUSDT:'AVAX', LINKUSDT:'LINK', DOTUSDT:'DOT', MATICUSDT:'POL', ATOMUSDT:'ATOM' };
+
+  function fmtP(n) { return n >= 1000 ? '$' + Math.round(n).toLocaleString('en-US') : n >= 1 ? '$' + n.toFixed(2) : '$' + n.toFixed(4); }
+
+  fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=' + encodeURIComponent(JSON.stringify(syms)))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var h = data.map(function(d) {
+        var chg = parseFloat(d.priceChangePercent);
+        var up = chg >= 0;
+        return '<span class="ticker-item"><span class="sym">' + (names[d.symbol]||d.symbol) + '</span><span class="price">' + fmtP(parseFloat(d.lastPrice)) + '</span><span class="chg ' + (up?'up':'dn') + '">' + (up?'+':'') + chg.toFixed(2) + '%</span></span><span class="ticker-sep">&#9670;</span>';
+      }).join('');
+      document.getElementById('tickerTrack').innerHTML = h + h;
+    })
+    .catch(function() {
+      var t = [
+        { s:'BTC', p:'$101,234', c:'+2.41%', u:1 }, { s:'ETH', p:'$3,891', c:'+1.83%', u:1 },
+        { s:'SOL', p:'$187.42', c:'-0.62%', u:0 }, { s:'XRP', p:'$2.34', c:'+3.12%', u:1 },
+      ];
+      var h = t.map(function(i) { return '<span class="ticker-item"><span class="sym">' + i.s + '</span><span class="price">' + i.p + '</span><span class="chg ' + (i.u?'up':'dn') + '">' + i.c + '</span></span><span class="ticker-sep">&#9670;</span>'; }).join('');
+      document.getElementById('tickerTrack').innerHTML = h + h;
+    });
+})();
+
+// ── NAV SCROLL ──
+window.addEventListener('scroll', function() { document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 30); }, { passive: true });
+
+// ── MODALS ──
+function openModal(t) { closeModals(); var el = document.getElementById(t+'Modal'); if (el) el.classList.add('active'); }
+function closeModals() { document.querySelectorAll('.modal-overlay').forEach(function(m) { m.classList.remove('active'); }); document.querySelectorAll('.form-error').forEach(function(e) { e.style.display='none'; e.textContent=''; }); }
+function switchModal(t) { closeModals(); setTimeout(function() { openModal(t); }, 150); }
+document.querySelectorAll('.modal-overlay').forEach(function(o) { o.addEventListener('click', function(e) { if (e.target === o) closeModals(); }); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModals(); });
+
+// ── AUTH ──
+function showError(id, msg) { var el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
+async function handleLogin(e) {
+  e.preventDefault(); var f = e.target, b = document.getElementById('loginBtn');
+  b.disabled = true; b.textContent = 'Signing in...';
+  try { var r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email:f.email.value, password:f.password.value }) });
+    var d = await r.json(); if (!r.ok) { showError('loginError', d.error||'Login failed.'); return; }
+    window.location.href = d.user?.hasAccess ? '/dashboard' : '/subscribe';
+  } catch(err) { showError('loginError', 'Network error. Please try again.'); }
+  finally { b.disabled = false; b.textContent = 'Sign In'; } return false;
+}
+async function handleRegister(e) {
+  e.preventDefault(); var f = e.target;
+  if (!document.getElementById('agreeTerms').checked) { showError('registerError', 'You must agree to the Terms & Conditions.'); return false; }
+  var b = document.getElementById('registerBtn'); b.disabled = true; b.textContent = 'Creating account...';
+  try { var r = await fetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email:f.email.value, password:f.password.value, name:f.name.value, telegram_username:f.telegram_username.value }) });
+    var d = await r.json(); if (!r.ok) { showError('registerError', d.error||'Registration failed.'); return; }
+    window.location.href = '/subscribe';
+  } catch(err) { showError('registerError', 'Network error. Please try again.'); }
+  finally { b.disabled = false; b.textContent = 'Create Account'; } return false;
+}
+async function startCheckout(plan) {
+  try { var me = await fetch('/api/me').then(function(r) { return r.json(); });
+    if (!me.user) { openModal('register'); return; }
+    if (me.user.hasAccess) { window.location.href = '/dashboard'; return; }
+    var r = await fetch('/api/billing/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ plan: plan }) });
+    var d = await r.json(); if (d.url) window.location.href = d.url; else alert(d.error||'Could not start checkout.');
+  } catch(err) { alert('Network error. Please try again.'); }
+}
+
+// ── LIVE DASHBOARD DATA ──
+(function() {
+  function fmt(n) { return n >= 1000 ? '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '$' + n.toFixed(2); }
+
+  // BTC price + 24h change from Binance
+  fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var price = parseFloat(d.lastPrice);
+      var chg = parseFloat(d.priceChangePercent);
+      var el = document.getElementById('liveBtc');
+      if (el) { el.textContent = fmt(price); el.className = 'chg ' + (chg >= 0 ? 'up' : 'dn'); }
+      var cel = document.getElementById('liveBtcChg');
+      if (cel) { cel.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'; cel.className = 'chg ' + (chg >= 0 ? 'up' : 'dn'); }
+    }).catch(function() {});
+
+  // Crypto Fear & Greed
+  fetch('https://api.alternative.me/fng/?limit=1')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var val = parseInt(d.data[0].value);
+      var el = document.getElementById('liveFng');
+      if (el) {
+        el.textContent = val;
+        el.style.color = val <= 25 ? 'var(--sc-red)' : val <= 45 ? '#f97316' : val <= 55 ? 'var(--sc-accent)' : val <= 75 ? '#eab308' : 'var(--sc-green)';
+      }
+    }).catch(function() {});
+
+  // Next FOMC & OPEX dates (pre-computed schedule)
+  var fomc = ['2025-01-29','2025-03-19','2025-05-07','2025-06-18','2025-07-30','2025-09-17','2025-10-29','2025-12-17',
+    '2026-01-28','2026-03-18','2026-05-06','2026-06-17','2026-07-29','2026-09-16','2026-10-28','2026-12-16',
+    '2027-01-27','2027-03-17','2027-05-05','2027-06-16'];
+  var now = new Date();
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // Next FOMC
+  var nextFomc = null;
+  for (var i = 0; i < fomc.length; i++) {
+    var fd = new Date(fomc[i] + 'T00:00:00');
+    if (fd >= now) { nextFomc = fd; break; }
+  }
+  if (nextFomc) {
+    var fe = document.getElementById('liveFormc');
+    if (fe) fe.textContent = months[nextFomc.getMonth()] + ' ' + nextFomc.getDate();
+  }
+
+  // Next monthly OPEX (3rd Friday of each month)
+  function thirdFriday(year, month) {
+    var d = new Date(year, month, 1);
+    var day = d.getDay();
+    var first = day <= 5 ? 5 - day : 12 - day;
+    return new Date(year, month, first + 1 + 14);
+  }
+  var opexDate = null;
+  for (var m = now.getMonth(); m < now.getMonth() + 3; m++) {
+    var y = now.getFullYear() + Math.floor(m / 12);
+    var tf = thirdFriday(y, m % 12);
+    if (tf >= now) { opexDate = tf; break; }
+  }
+  if (opexDate) {
+    var oe = document.getElementById('liveOpex');
+    if (oe) oe.textContent = months[opexDate.getMonth()] + ' ' + opexDate.getDate();
+  }
+})();
+
+// ── CHECK AUTH ON LOAD ──
+(async function() {
+  try { var me = await fetch('/api/me').then(function(r) { return r.json(); });
+    if (me.user) { var links = document.getElementById('navLinks');
+      var si = links.querySelector('a[onclick*="login"]'), cta = links.querySelector('.nav-cta');
+      if (me.user.hasAccess) { if (si) { si.textContent='Dashboard'; si.setAttribute('onclick',''); si.href='/dashboard'; } if (cta) { cta.textContent='Dashboard'; cta.setAttribute('onclick',''); cta.href='/dashboard'; } }
+      else { if (si) { si.textContent='Subscribe'; si.setAttribute('onclick',''); si.href='/subscribe'; } if (cta) { cta.textContent='Subscribe'; cta.setAttribute('onclick',''); cta.href='/subscribe'; } }
+    }
+  } catch(err) {}
+})();
+</script>
+</body>
+</html>

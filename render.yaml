@@ -1,0 +1,39 @@
+# One-click deploy config for Render.com (render.com/deploy).
+# After connecting the repo, set the secret env vars in the dashboard.
+services:
+  - type: web
+    name: ivth-legion
+    runtime: node
+    plan: starter
+    buildCommand: ""            # zero dependencies — nothing to build
+    startCommand: node --disable-warning=ExperimentalWarning src/index.js
+    rootDir: app
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: legion-data          # persistent storage for the SQLite database
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: BASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_GROUP_ID
+        sync: false
+      - key: TELEGRAM_GROUP_LINK
+        sync: false

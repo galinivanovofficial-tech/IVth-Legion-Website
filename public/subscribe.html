@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IVth Legion — Join the Legion</title>
+  <link rel="icon" type="image/png" href="logo.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --bg:#050508;--bg2:#0a0a11;--panel:#0d0d16;--panel2:#11111c;
+      --gold:#c9a84c;--gold2:#e8d08a;--gold3:#8a6d2f;
+      --line:rgba(255,255,255,0.07);--gline:rgba(201,168,76,0.28);--gline-soft:rgba(201,168,76,0.14);
+      --text:#f2f2f6;--muted:#9494ae;--dim:#63637e;--green:#2ecc71;
+      --ease:cubic-bezier(.22,.61,.24,1);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;line-height:1.6}
+    body::before{content:'';position:fixed;inset:0;pointer-events:none;background:
+      radial-gradient(55% 40% at 50% -5%,rgba(201,168,76,.12),transparent 60%),
+      radial-gradient(40% 35% at 85% 90%,rgba(120,90,30,.08),transparent 60%)}
+    ::selection{background:rgba(201,168,76,.35);color:#fff}
+    button{font-family:inherit}
+
+    nav{display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,4vw,48px);height:74px;border-bottom:1px solid var(--line);background:rgba(5,5,8,.7);backdrop-filter:blur(18px);position:sticky;top:0;z-index:10}
+    .nav-left{display:flex;align-items:center;gap:13px;text-decoration:none;color:var(--text)}
+    .nav-left svg{height:30px;width:auto}
+    .nav-brand{font-family:'Cinzel',serif;font-size:15px;font-weight:700;letter-spacing:.14em}
+    .nav-brand sup{font-size:.55em}
+    .nav-actions{display:flex;align-items:center;gap:22px}
+    .nav-actions a,.nav-actions button{background:none;border:none;color:var(--muted);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;text-decoration:none;font-family:'Inter',sans-serif;transition:color .2s}
+    .nav-actions a:hover,.nav-actions button:hover{color:var(--gold)}
+
+    .wrap{max-width:980px;margin:0 auto;padding:60px 24px 100px;position:relative}
+    .eyebrow{text-align:center;font-family:'Cinzel',serif;font-size:11px;letter-spacing:.5em;color:var(--gold);text-transform:uppercase;margin-bottom:16px}
+    h1{text-align:center;font-family:'Cinzel',serif;font-size:clamp(30px,5vw,48px);font-weight:900;margin-bottom:12px;line-height:1.1}
+    h1 em{font-style:normal;background:linear-gradient(115deg,var(--gold2) 10%,var(--gold) 45%,var(--gold3) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .sub{text-align:center;color:var(--muted);font-size:15px;font-weight:300;margin-bottom:48px}
+
+    .msg{display:none;text-align:center;font-size:13.5px;padding:14px 18px;margin:0 auto 30px;max-width:640px;border-radius:12px;border:1px solid}
+    .msg.err{color:#ff9d94;border-color:rgba(231,76,60,.35);background:rgba(231,76,60,.07)}
+    .msg.info{color:#8fd8f0;border-color:rgba(34,158,217,.3);background:rgba(34,158,217,.07)}
+
+    .plans{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+    @media(max-width:760px){.plans{grid-template-columns:1fr}}
+    .plan{position:relative;border-radius:20px;padding:40px 36px 36px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);cursor:pointer;transition:transform .3s var(--ease),border-color .3s,box-shadow .3s;display:flex;flex-direction:column}
+    .plan:hover{transform:translateY(-4px)}
+    .plan.selected{border-color:var(--gline);box-shadow:0 24px 70px rgba(0,0,0,.5),0 0 60px rgba(201,168,76,.08);background:linear-gradient(180deg,rgba(201,168,76,.07),rgba(201,168,76,.015)),linear-gradient(180deg,var(--panel2),var(--panel))}
+    .plan-flag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(115deg,var(--gold2),var(--gold));color:#0a0800;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;padding:6px 16px;border-radius:100px;white-space:nowrap}
+    .plan-radio{position:absolute;top:22px;right:22px;width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.2);transition:all .25s}
+    .plan.selected .plan-radio{border-color:var(--gold);background:radial-gradient(circle,var(--gold) 0 45%,transparent 50%)}
+    .plan-name{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold2);margin-bottom:16px}
+    .plan-price{display:flex;align-items:baseline;gap:7px}
+    .plan-price .cur{font-family:'Cinzel',serif;font-size:22px;color:var(--gold)}
+    .plan-price .amt{font-family:'Cinzel',serif;font-size:54px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+    .plan-price .per{font-size:13px;color:var(--dim)}
+    .plan-note{font-size:12.5px;color:var(--muted);margin-top:8px}
+    .plan-note b{color:var(--green);font-weight:600}
+
+    .benefits{margin:40px auto 0;max-width:640px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,var(--panel2),var(--panel));padding:28px 32px}
+    .benefits h3{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold2);margin-bottom:16px;text-align:center}
+    .benefits ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:4px 26px}
+    @media(max-width:640px){.benefits ul{grid-template-columns:1fr}}
+    .benefits li{display:flex;gap:10px;font-size:13.5px;color:rgba(242,242,246,.82);padding:7px 0;font-weight:300}
+    .benefits .tick{color:var(--gold);font-size:11px;margin-top:4px}
+
+    .cta-zone{max-width:640px;margin:36px auto 0;text-align:center}
+    .btn{width:100%;background:linear-gradient(115deg,var(--gold2),var(--gold) 55%,var(--gold3));border:none;border-radius:100px;color:#0a0800;font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;padding:20px;cursor:pointer;transition:transform .25s,box-shadow .25s}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 16px 50px rgba(201,168,76,.35)}
+    .btn:disabled{opacity:.55;cursor:default;transform:none;box-shadow:none}
+    .note{font-size:12px;color:var(--dim);margin-top:16px}
+    .pay-row{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:wrap;margin-top:22px}
+    .paychip{font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:5px 11px;background:rgba(255,255,255,.02)}
+    .paychip.rev{color:#fff}
+    .loading{text-align:center;padding:100px 0;color:var(--dim);letter-spacing:.2em;text-transform:uppercase;font-size:12px}
+  </style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="legionMark" viewBox="0.00 0.00 1426.75 1224.64"><g transform="translate(-15.896122,1240.850008) scale(1.000000,-1.000000)"><path d="M1180 1240 c-208 0 -240 0 -241 -1 -2 -3 0 -6 3 -6 1 -1 2 -2 3 -3 0
+-2 2 -3 3 -3 2 -1 3 -2 3 -3 0 -2 1 -3 3 -3 1 0 3 -1 3 -3 0 -1 2 -3 3 -3 1 0
+3 -2 3 -3 0 -1 2 -3 3 -3 1 0 3 -2 3 -3 0 -1 2 -3 3 -3 1 0 3 -2 3 -3 0 -1 2
+-3 3 -3 1 0 3 -2 3 -3 0 -1 2 -3 3 -3 1 0 3 -2 3 -3 0 -1 2 -3 3 -3 1 0 3 -2
+3 -3 0 -2 2 -3 3 -3 2 0 3 -1 3 -3 0 -1 1 -3 3 -3 1 -1 2 -2 3 -3 0 -1 1 -3 3
+-3 1 -1 2 -2 3 -3 0 -2 2 -3 3 -3 2 -1 3 -2 3 -3 l1 -2 170 -1 c180 0 173 0
+176 5 2 3 3 4 10 10 3 2 6 6 8 7 1 2 3 3 4 3 0 0 1 1 2 3 1 1 2 2 3 3 2 1 3 1
+3 2 0 1 2 3 4 6 3 2 5 4 6 4 1 0 1 1 2 3 1 1 2 2 3 3 1 0 3 1 3 3 1 1 2 2 3 3
+2 1 3 2 3 3 0 0 1 2 3 2 2 1 3 2 3 4 1 1 2 2 4 3 1 0 2 1 3 3 0 1 1 2 2 2 2 1
+3 2 3 3 1 2 2 3 3 3 3 0 4 3 3 6 -1 2 -1 2 -12 2 -6 0 -118 -1 -250 -1z"/><path d="M22 1239 c-2 -2 -1 -5 2 -6 2 0 3 -2 3 -3 1 -1 2 -2 4 -3 2 0 3 -2 3
+-3 0 -1 1 -2 2 -2 2 0 3 -2 4 -3 1 -2 2 -3 2 -3 1 0 9 -7 18 -16 12 -13 38
+-39 39 -39 1 0 2 -1 4 -3 l4 -3 279 0 c154 1 280 1 281 1 1 0 2 1 2 2 1 1 2 2
+4 2 1 1 2 2 3 3 0 2 1 3 3 3 1 1 2 2 3 3 0 2 1 3 3 3 1 1 2 2 3 3 0 2 1 3 2 3
+2 1 3 2 3 3 1 2 2 3 3 4 1 0 3 1 3 3 1 1 2 2 3 3 2 0 3 2 3 3 1 1 2 2 3 3 2 0
+3 2 3 3 0 2 1 3 3 3 1 0 3 1 3 3 0 1 2 3 3 3 1 0 3 2 3 3 0 1 2 3 3 3 1 0 3 2
+3 3 0 1 2 3 3 3 1 0 3 2 3 3 0 1 2 3 3 3 1 0 3 2 3 3 0 2 2 3 3 3 2 0 3 1 3 4
+l0 3 -362 0 c-319 0 -362 0 -363 -1z"/><path d="M124 1135 c-1 -8 0 -10 3 -10 1 0 2 -1 2 -2 1 -2 2 -3 4 -4 1 0 3 -1
+3 -2 2 -3 -3 -3 137 -2 85 0 88 0 89 2 2 3 1 7 -1 8 -1 1 -3 3 -4 6 -2 3 -3 4
+-6 4 -8 1 -227 1 -227 0z"/><path d="M389 1132 c-7 -1 -8 -3 -3 -6 1 -1 2 -3 2 -4 0 0 1 -1 2 -2 2 0 3 -2
+3 -3 1 -2 2 -3 3 -4 2 0 3 -2 3 -3 0 -2 1 -3 3 -3 2 0 3 -1 3 -3 0 -2 1 -3 3
+-3 1 0 2 -1 3 -3 0 -2 2 -3 3 -3 1 -1 2 -2 2 -4 1 -1 2 -2 3 -3 1 -1 3 -3 4
+-5 1 -2 3 -4 4 -5 1 0 2 -2 2 -4 1 -1 2 -2 4 -3 1 -1 2 -2 2 -3 0 -1 1 -3 2
+-4 3 -1 3 -3 4 -11 1 -5 3 -10 3 -11 1 -1 2 -5 3 -9 1 -9 2 -11 3 -11 1 0 3
+-8 4 -15 0 -4 1 -7 2 -8 1 -1 2 -4 3 -9 1 -5 2 -9 2 -10 2 -2 3 -5 4 -13 1 -6
+2 -9 3 -10 1 -1 2 -4 3 -10 1 -6 1 -9 3 -12 2 -2 3 -5 3 -8 0 -5 2 -11 3 -12
+1 -1 2 -4 3 -10 1 -5 2 -9 3 -11 2 -2 4 -12 4 -18 0 -1 1 -2 2 -3 1 0 2 -2 3
+-11 1 -7 2 -12 3 -12 1 -1 2 -5 3 -9 1 -5 2 -9 3 -11 1 -1 2 -5 3 -8 0 -8 2
+-14 3 -14 1 -1 2 -4 3 -10 1 -5 2 -9 3 -10 1 -1 2 -4 2 -7 2 -13 2 -14 4 -16
+1 -1 2 -5 3 -11 1 -6 3 -11 3 -12 1 -1 2 -5 3 -10 1 -5 2 -9 2 -9 2 0 4 -6 4
+-12 1 -4 2 -7 3 -9 1 -2 2 -6 3 -11 1 -6 2 -9 3 -10 1 -1 2 -4 3 -10 1 -8 3
+-13 4 -13 1 0 1 -2 1 -5 1 -7 3 -13 4 -13 1 -1 2 -4 3 -9 1 -5 2 -9 2 -10 2
+-2 4 -8 5 -15 0 -3 1 -7 2 -8 1 -2 2 -7 3 -13 1 -6 3 -11 3 -11 1 -1 2 -5 3
+-9 1 -5 2 -8 3 -9 2 -1 2 -4 3 -9 0 -7 2 -13 4 -15 0 -1 1 -5 2 -10 1 -5 2 -8
+3 -9 1 -1 2 -4 3 -10 1 -6 2 -10 3 -12 2 -1 3 -5 3 -10 1 -5 2 -8 3 -9 1 -2 2
+-5 3 -11 1 -4 2 -8 2 -9 2 -1 4 -7 4 -11 0 -3 1 -6 2 -8 2 -3 3 -8 4 -13 1 -5
+2 -9 3 -10 1 -1 3 -6 3 -11 0 -4 2 -10 4 -11 0 -1 1 -5 2 -9 1 -6 2 -9 3 -10
+1 -1 2 -4 3 -10 0 -5 2 -9 3 -11 1 -2 2 -7 3 -12 1 -5 2 -9 2 -9 2 -2 4 -7 4
+-13 1 -3 2 -7 3 -8 1 -2 2 -7 3 -12 1 -6 2 -9 3 -10 1 -1 2 -4 3 -9 1 -4 2 -8
+2 -9 3 -3 4 -7 4 -11 0 -3 1 -6 3 -9 1 -2 2 -7 3 -12 1 -5 2 -8 3 -9 1 -1 2
+-4 3 -9 1 -4 2 -10 4 -12 1 -3 2 -7 2 -9 0 -5 2 -11 3 -12 1 0 2 -4 3 -9 1 -5
+2 -9 2 -10 2 -1 5 -14 5 -19 0 -1 1 -2 2 -3 1 -1 2 -4 3 -10 1 -6 2 -8 3 -9 1
+-1 2 -3 3 -9 1 -6 2 -8 3 -9 1 -1 2 -3 3 -9 1 -5 2 -9 2 -10 2 -2 3 -7 5 -14
+0 -4 2 -7 2 -8 1 -1 2 -5 3 -9 1 -6 2 -8 3 -9 1 -1 2 -4 3 -10 1 -6 2 -8 3 -9
+1 -1 2 -2 2 -3 0 -5 0 -5 48 -5 32 0 47 0 55 -1 l10 -2 1 3 c1 1 3 2 4 2 1 0
+2 1 3 6 1 4 2 6 3 7 1 1 2 3 3 6 0 2 1 5 2 6 2 2 4 6 5 12 0 3 1 5 2 5 1 1 2
+2 3 6 0 6 1 9 4 11 1 1 2 4 2 7 1 3 2 5 3 6 1 1 2 3 3 6 0 2 1 6 3 9 2 2 3 6
+4 9 0 3 1 5 2 6 1 1 2 3 3 6 0 2 1 6 3 9 2 2 3 6 3 9 1 4 2 6 3 6 1 1 2 2 2 6
+1 5 3 10 5 12 0 0 1 3 2 6 0 3 1 6 2 6 2 2 4 6 4 9 0 2 1 5 3 7 2 3 3 6 3 8 0
+2 1 5 2 7 2 2 3 6 4 9 1 3 2 6 3 7 1 1 2 4 3 8 1 3 1 6 2 6 2 0 4 6 4 11 1 3
+2 5 3 6 1 1 2 3 3 6 0 2 1 6 3 9 2 2 3 6 3 9 1 3 2 5 3 6 1 1 2 3 2 5 1 7 3
+11 5 12 1 0 1 3 2 6 0 4 1 7 2 7 2 2 4 6 4 9 0 2 1 4 2 6 2 2 3 6 4 9 1 3 2 6
+3 7 3 3 3 1 3 220 l0 211 -66 0 c-54 0 -65 0 -66 -1 -1 -1 -1 -57 -1 -212 0
+-194 -1 -211 -2 -213 -1 -1 -2 -4 -2 -6 -1 -7 -3 -11 -4 -11 -1 -1 -2 -3 -3
+-6 0 -6 -2 -11 -4 -12 0 -1 -1 -4 -2 -7 -1 -3 -2 -6 -3 -7 -1 0 -2 -4 -4 -12
+-1 -7 -3 -6 -5 3 -1 4 -2 8 -2 9 -2 4 -3 7 -4 16 -1 5 -2 9 -3 9 -1 1 -3 8 -4
+17 0 4 -1 6 -2 7 -1 1 -2 4 -3 12 -1 7 -2 11 -3 13 -1 1 -3 7 -4 12 0 5 -2 10
+-3 10 0 1 -1 5 -2 10 -1 5 -2 11 -3 12 -1 2 -2 8 -3 14 -1 6 -2 11 -3 12 -1 1
+-2 5 -3 10 -1 4 -2 8 -2 9 -2 2 -4 8 -4 12 0 5 -2 11 -3 12 -1 0 -2 4 -3 9 -1
+5 -2 9 -3 10 -1 1 -2 7 -4 17 0 3 -1 5 -2 6 -1 1 -2 3 -2 7 -1 9 -3 16 -4 17
+-1 0 -2 4 -3 9 -1 5 -2 10 -3 12 -1 1 -2 7 -3 12 -1 4 -2 9 -2 10 -3 3 -4 7
+-4 14 -1 4 -2 8 -2 9 -2 2 -4 8 -5 15 0 5 -1 8 -2 9 -1 1 -2 4 -3 10 -1 9 -2
+11 -4 13 0 1 -1 5 -2 10 -1 5 -2 10 -3 12 -1 1 -2 6 -3 11 -1 7 -2 9 -3 10 -1
+1 -2 3 -3 10 -1 5 -2 10 -3 11 -1 2 -2 6 -3 12 -1 5 -2 9 -3 10 -1 1 -3 7 -4
+15 0 4 -1 7 -2 8 -1 1 -2 4 -3 9 -1 5 -2 10 -3 12 -1 2 -2 8 -3 14 -1 6 -2 11
+-3 12 -1 1 -2 5 -3 10 -1 5 -2 8 -3 9 -2 1 -2 4 -3 12 -1 7 -2 10 -3 11 -1 1
+-2 4 -3 10 -1 4 -2 10 -3 13 -2 2 -3 7 -3 12 -1 5 -2 7 -3 8 -2 1 -2 3 -3 11
+-1 9 -2 12 -3 12 -1 1 -2 4 -3 10 -1 5 -2 9 -2 10 -2 1 -4 7 -4 11 0 3 -2 9
+-4 11 0 1 -1 5 -2 10 -1 5 -2 9 -2 10 -2 1 -4 6 -4 14 -1 6 -1 8 -3 9 -1 1 -2
+4 -3 10 -1 5 -2 10 -3 12 -1 1 -2 6 -3 10 -1 5 -2 8 -3 9 -3 3 -4 12 -1 13 2
+1 3 4 4 6 1 3 2 5 3 6 2 0 3 2 3 3 0 2 1 3 2 4 2 1 5 6 5 8 0 1 1 2 2 3 1 0 3
+2 3 3 0 1 1 3 3 3 1 1 2 3 3 5 1 3 2 5 4 6 3 2 4 7 2 8 -2 0 -264 1 -268 0z"/><path d="M131 1101 c-7 -1 -8 -2 -8 -3 0 -1 -1 -2 -3 -3 -3 0 -10 -7 -10 -9 0
+-1 -1 -2 -2 -3 -5 -2 -5 -31 0 -31 0 0 1 0 1 -1 0 -9 27 -15 35 -7 5 5 8 9 9
+12 1 4 3 4 103 4 102 1 102 0 102 -4 0 -1 1 -2 2 -2 2 -1 3 -2 3 -4 1 -2 2 -3
+3 -3 1 0 3 -1 3 -2 2 -5 24 -6 24 -1 0 0 1 2 3 2 2 1 3 2 4 4 0 1 1 3 2 4 3 3
+3 16 0 17 -1 0 -2 2 -3 4 -2 7 -2 7 -4 7 0 0 -2 2 -3 4 -1 2 -2 3 -3 3 -1 0
+-2 1 -2 2 0 2 -2 4 -4 4 -1 0 -2 1 -3 2 -1 2 -2 3 -7 4 -8 1 -234 1 -242 0z"/><path d="M1298 1087 c-39 -1 -89 -1 -94 -1 -5 1 -5 1 -6 -2 -3 -4 -3 -953 -1
+-955 2 -1 134 -1 136 0 2 2 2 954 -1 955 -1 0 -2 1 -3 2 -1 1 -3 2 -4 2 -1 0
+-13 -1 -27 -1z"/><path d="M163 1046 c-1 0 -2 -1 -3 -2 -1 -2 -2 -3 -4 -3 -2 -1 -3 -2 -3 -3 0
+-1 -1 -2 -3 -3 -1 0 -3 -1 -3 -3 -1 -2 -2 -3 -3 -3 -3 -1 -3 -5 1 -9 1 -2 2
+-4 3 -5 0 -2 6 -5 9 -5 0 0 1 -1 1 -3 0 -2 0 -69 0 -150 0 -81 0 -256 0 -389
+l-1 -242 -2 -5 c-2 -2 -3 -4 -3 -5 0 0 -2 -2 -5 -3 -3 -1 -5 -3 -5 -4 -1 -1
+-2 -2 -3 -3 -3 -1 -3 -1 -3 -8 l0 -8 5 -1 c5 -1 234 -1 237 0 6 2 -1 21 -10
+24 -2 1 -4 2 -4 4 -1 1 -2 2 -3 3 -2 0 -3 1 -3 3 -1 4 -1 786 0 787 0 1 1 1 2
+1 1 0 2 1 3 3 1 2 2 3 3 3 4 0 4 11 0 12 -1 0 -3 1 -3 3 0 2 -2 3 -3 3 -2 0
+-3 1 -3 3 0 1 -1 2 -4 3 -2 0 -4 2 -6 3 l-2 3 -90 0 c-49 0 -91 0 -92 -1z
+m152 -39 c1 -1 2 -2 3 -2 3 0 5 -778 2 -780 -2 -1 -14 -1 -15 1 -1 0 -1 389
+-1 659 0 113 0 120 2 121 1 0 2 1 3 1 2 1 5 1 6 0z m-109 -2 c2 -1 1 -779 0
+-780 -6 -4 -16 1 -15 6 0 3 0 151 1 329 0 410 0 437 0 441 -2 4 10 8 14 4z
+m54 1 c2 -1 2 -23 2 -387 0 -212 1 -387 1 -388 2 -5 -7 -9 -13 -6 -2 1 -2 778
+0 780 2 2 8 2 10 1z"/><path d="M1029 934 l-2 -3 0 -54 c1 -81 0 -680 -1 -716 l-1 -29 2 -2 c4 -3
+133 -3 134 -1 2 3 1 803 0 806 l-2 2 -64 0 -64 1 -2 -4z"/><path d="M125 171 c-4 -1 -6 -2 -7 -4 -1 -1 -3 -2 -4 -2 -1 0 -3 -1 -3 -3 -1
+-2 -3 -3 -3 -3 -2 0 -3 -11 -3 -21 1 -12 2 -13 6 -14 6 -2 298 -1 299 1 3 5 1
+34 -2 34 -2 0 -3 1 -3 3 0 1 -1 2 -3 3 -2 0 -3 1 -4 3 -1 1 -2 2 -7 3 -8 1
+-258 1 -266 0z"/><path d="M166 104 l-66 0 -1 -2 c0 -2 -2 -3 -3 -3 -2 0 -3 -1 -3 -3 0 -1 -1
+-3 -3 -3 -1 0 -3 -2 -3 -3 0 -1 -2 -3 -3 -3 -2 0 -3 -2 -3 -3 0 -2 -1 -3 -3
+-3 -1 0 -3 -1 -3 -3 -1 -1 -2 -2 -3 -3 -2 0 -3 -2 -3 -3 -1 -1 -2 -2 -4 -2 -1
+-1 -2 -2 -3 -3 0 -2 -1 -3 -3 -3 -1 -1 -2 -2 -3 -3 0 -2 -1 -3 -3 -4 -2 0 -3
+-2 -3 -2 0 -1 -1 -2 -3 -3 -1 -1 -2 -2 -3 -3 -1 -2 -1 -3 -2 -3 -1 0 -3 -1 -5
+-3 -1 -2 -5 -5 -8 -7 -2 -3 -5 -6 -7 -7 -1 -2 -3 -3 -4 -4 -2 0 -3 -8 -1 -8 4
+0 149 0 149 1 1 0 478 0 503 0 l25 -1 0 4 c0 4 -1 5 -3 7 -2 2 -4 5 -5 7 0 1
+-2 3 -3 3 0 0 -2 1 -2 3 -1 2 -2 4 -4 4 -1 1 -2 2 -2 3 0 2 -1 3 -3 3 -1 0 -2
+1 -3 3 0 2 -1 3 -3 4 -1 0 -2 1 -2 2 0 1 -2 3 -4 6 -2 2 -4 5 -4 6 0 0 -1 1
+-2 2 -2 1 -3 2 -4 3 0 2 -1 3 -3 4 -1 0 -2 2 -2 3 0 1 -1 2 -3 3 -1 1 -3 2 -3
+4 0 1 -1 2 -2 3 -2 0 -3 1 -3 2 -1 2 -3 4 -5 6 l-4 3 -197 0 c-108 0 -226 -1
+-262 -1z"/><path d="M964 104 c-1 -1 -2 -2 -2 -2 0 -1 -1 -2 -2 -3 -1 0 -3 -2 -3 -3 0 -1
+-1 -2 -3 -3 -1 -1 -2 -2 -2 -2 0 -1 -2 -4 -4 -7 -2 -2 -4 -5 -4 -6 0 -1 -1 -2
+-2 -3 -1 0 -3 -2 -3 -3 0 -2 -1 -3 -3 -3 -1 0 -2 -1 -3 -3 0 -2 -1 -3 -3 -4
+-1 0 -2 -1 -2 -2 0 -1 -3 -6 -6 -9 -1 -1 -2 -2 -2 -3 0 -1 -1 -2 -2 -3 -1 0
+-3 -2 -3 -3 0 -1 -2 -3 -3 -3 -1 -1 -3 -3 -3 -4 0 -1 -1 -2 -3 -3 -1 0 -2 -1
+-2 -2 0 -1 -1 -3 -2 -4 -2 -1 -3 -3 -3 -5 0 -5 -3 -5 56 -4 94 2 479 2 482 1
+3 -2 5 -1 5 3 0 3 0 4 -2 5 -2 0 -3 2 -4 3 -1 1 -3 2 -4 3 -2 1 -5 4 -6 5 -1
+2 -3 3 -4 3 0 0 -1 1 -2 3 -1 1 -2 2 -3 3 -1 0 -3 2 -3 3 -1 1 -3 3 -4 3 -1 0
+-2 1 -2 2 -1 2 -2 3 -3 3 -2 1 -3 2 -4 4 0 1 -1 2 -3 3 -1 0 -2 1 -3 2 0 1 -1
+3 -3 3 -1 1 -2 2 -3 3 0 2 -2 3 -3 3 -2 0 -3 1 -3 3 0 2 -1 3 -3 3 -2 0 -3 1
+-3 3 0 1 -1 2 -3 3 -1 0 -3 1 -3 3 -1 1 -2 2 -3 3 -2 1 -3 2 -3 3 0 0 -1 2 -3
+2 -2 1 -3 2 -4 4 0 1 -1 2 -3 2 -20 1 -390 0 -391 0z"/></g></symbol>
+  </defs>
+</svg>
+
+<nav>
+  <a class="nav-left" href="index.html"><svg viewBox="0.00 0.00 1426.75 1224.64" fill="currentColor"><use href="#legionMark"/></svg><span class="nav-brand">IV<sup>th</sup> LEGION</span></a>
+  <div class="nav-actions">
+    <a href="index.html">&larr; Home</a>
+    <button id="logout" style="display:none" onclick="Legion.logout().then(()=>location.href='index.html')">Sign out</button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loading" class="loading">Loading&hellip;</div>
+
+  <div id="content" style="display:none">
+    <p class="eyebrow">Final Step</p>
+    <h1>Choose Your <em>Commitment.</em></h1>
+    <p class="sub" id="greeting">Same access either way — instant Telegram invite, full war room, everything.</p>
+
+    <div id="msg" class="msg"></div>
+
+    <div class="plans">
+      <div class="plan" id="card-monthly" onclick="setPlan('monthly')" role="radio" aria-checked="false" tabindex="0">
+        <div class="plan-radio"></div>
+        <div class="plan-name">Monthly</div>
+        <div class="plan-price"><span class="cur">&euro;</span><span class="amt">89</span><span class="per">/ month</span></div>
+        <div class="plan-note">Cancel anytime &middot; no commitment</div>
+      </div>
+
+      <div class="plan selected" id="card-yearly" onclick="setPlan('yearly')" role="radio" aria-checked="true" tabindex="0">
+        <div class="plan-flag">Best Value &middot; Save &euro;269</div>
+        <div class="plan-radio"></div>
+        <div class="plan-name">Yearly</div>
+        <div class="plan-price"><span class="cur">&euro;</span><span class="amt">799</span><span class="per">/ year</span></div>
+        <div class="plan-note">&asymp; &euro;66.58 / month &middot; <b>3 months free</b></div>
+      </div>
+    </div>
+
+    <div class="benefits">
+      <h3>Every plan includes</h3>
+      <ul>
+        <li><span class="tick">&#10022;</span>Private Telegram — instant invite</li>
+        <li><span class="tick">&#10022;</span>Real-time signals &amp; trade plans</li>
+        <li><span class="tick">&#10022;</span>Live war-room dashboard</li>
+        <li><span class="tick">&#10022;</span>Daily macro briefings</li>
+        <li><span class="tick">&#10022;</span>Weekly video analysis</li>
+        <li><span class="tick">&#10022;</span>Full education library</li>
+      </ul>
+    </div>
+
+    <div class="cta-zone">
+      <button id="subscribe" class="btn" onclick="subscribe()">Continue to Secure Checkout &rarr;</button>
+      <p class="note">&#128274; Payments by Stripe &middot; access is granted automatically the moment payment clears, and paused if a renewal fails.</p>
+      <div class="pay-row">
+        <span class="paychip">VISA</span><span class="paychip">Mastercard</span><span class="paychip rev">Revolut Pay</span><span class="paychip">Apple Pay</span><span class="paychip">G Pay</span><span class="paychip">SEPA</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  function showMsg(kind,text){const m=document.getElementById('msg');m.className='msg '+kind;m.textContent=text;m.style.display='block'}
+
+  let plan='yearly';
+  function setPlan(p){
+    plan=p;
+    ['monthly','yearly'].forEach(x=>{
+      const c=document.getElementById('card-'+x);
+      c.classList.toggle('selected',x===p);
+      c.setAttribute('aria-checked',x===p?'true':'false');
+    });
+    const btn=document.getElementById('subscribe');
+    if(!btn.disabled) btn.textContent = p==='yearly' ? 'Continue to Secure Checkout — €799 / year →' : 'Continue to Secure Checkout — €89 / month →';
+  }
+
+  async function subscribe(){
+    const btn=document.getElementById('subscribe');
+    btn.disabled=true;btn.textContent='Opening secure checkout…';
+    try{await Legion.startCheckout(plan)}
+    catch(err){showMsg('err',err.message);btn.disabled=false;setPlan(plan)}
+  }
+
+  (async function(){
+    const params=new URLSearchParams(location.search);
+    let user;
+    try{user=await Legion.me()}catch{user=null}
+    if(!user){location.href='index.html';return}
+    if(user.hasAccess){location.href='dashboard.html';return}
+
+    // preselect plan: URL param first, then landing-page choice
+    let pre=params.get('plan');
+    if(!pre){try{pre=sessionStorage.getItem('legion_plan')}catch{}}
+    setPlan(pre==='monthly'?'monthly':'yearly');
+
+    document.getElementById('loading').style.display='none';
+    document.getElementById('content').style.display='block';
+    document.getElementById('logout').style.display='inline';
+    document.getElementById('greeting').textContent=(user.name?user.name.split(' ')[0]+', y':'Y')+'ou’re one step from the Legion.';
+    if(params.get('checkout')==='cancelled')showMsg('info','Checkout cancelled — no charge was made. Subscribe whenever you’re ready.');
+  })();
+</script>
+</body>
+</html>
