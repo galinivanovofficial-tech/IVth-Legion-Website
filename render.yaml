@@ -4,7 +4,6 @@ services:
   - type: web
     name: ivth-legion
     runtime: node
-    nodeVersion: "22.15.0"
     plan: starter
     buildCommand: ""
     startCommand: node --disable-warning=ExperimentalWarning src/index.js
