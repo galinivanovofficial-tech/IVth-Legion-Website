@@ -4,10 +4,10 @@ services:
   - type: web
     name: ivth-legion
     runtime: node
+    nodeVersion: "22.15.0"
     plan: starter
-    buildCommand: ""            # zero dependencies — nothing to build
+    buildCommand: ""
     startCommand: node --disable-warning=ExperimentalWarning src/index.js
-    rootDir: app
     healthCheckPath: /api/health
     autoDeploy: true
     disk:
@@ -28,6 +28,8 @@ services:
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_PRICE_ID_YEARLY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
