@@ -6,8 +6,8 @@
   <title>IVth Legion – Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <!-- BTC Chart Engine -->
-  <script src="btc-chart.js"></script>
+  <!-- TradingView widget -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <style>
     :root {
       --gold: #c9a84c;
@@ -422,41 +422,8 @@
 
     /* Chart container */
     .chart-container {
-      height: auto;
+      height: 420px;
     }
-    #legion-chart {
-      height: auto;
-    }
-
-    /* Legion Chart controls */
-    .chart-controls {
-      display: flex;
-      gap: 24px;
-      padding: 10px 16px;
-      border-top: 1px solid var(--border2);
-      background: rgba(7,7,13,0.6);
-      flex-wrap: wrap;
-    }
-    .ctrl-group { display: flex; align-items: center; gap: 10px; }
-    .ctrl-title {
-      font-size: 9px;
-      letter-spacing: 0.15em;
-      color: var(--text-muted);
-      font-weight: 600;
-      margin-right: 2px;
-    }
-    .ctrl-toggle {
-      display: flex; align-items: center; gap: 5px;
-      font-size: 10px; color: var(--text-muted); cursor: pointer;
-      user-select: none; white-space: nowrap;
-    }
-    .ctrl-toggle input { display: none; }
-    .ctrl-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      opacity: 0.3; transition: opacity 0.15s;
-    }
-    .ctrl-toggle input:checked ~ .ctrl-dot { opacity: 1; }
-    .ctrl-toggle:hover { color: var(--text); }
 
     /* ── NEWS ── */
     .news-item {
@@ -1173,7 +1140,7 @@
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:16px;">
       <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-      <span class="topbar-title" id="topbarTitle">Overview</span>
+      <span class="topbar-title" id="topbarTitle">BTC Risk</span>
     </div>
     <div class="topbar-right">
       <div class="market-pill">
@@ -1193,7 +1160,7 @@
   <div class="content">
 
     <!-- ═══ OVERVIEW SECTION ═══ -->
-    <div class="section active" id="sec-overview">
+    <div class="section" id="sec-overview">
       <div class="greeting">
         <h1>Welcome back, Legionnaire 🏛️</h1>
         <p id="todayDate">Loading market briefing...</p>
@@ -1242,10 +1209,10 @@
       <div class="dash-grid">
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">📊 BTC/USD — Institutional Chart</span>
-            <span class="panel-badge">BINANCE</span>
+            <span class="panel-title">📊 BTC/USD — Live Chart</span>
+            <span class="panel-badge">TradingView</span>
           </div>
-          <div class="chart-container" id="legion-chart"></div>
+          <div class="chart-container" id="overview-chart"></div>
         </div>
 
         <div>
@@ -1435,7 +1402,7 @@
     </div>
 
     <!-- ═══ RISK & CYCLES SECTION ═══ -->
-    <div class="section" id="sec-cycles">
+    <div class="section active" id="sec-cycles">
       <div class="greeting">
         <h1>BTC Risk</h1>
         <p>The IVth Legion proprietary BTC risk model — where are we in the cycle?</p>
@@ -1778,14 +1745,6 @@
         }
       }, 50);
     }
-    if (id === 'overview') {
-      if (!window.legionChartLoaded) {
-        setTimeout(initOverviewChart, 50);
-        window.legionChartLoaded = true;
-      } else if (typeof LegionChart !== 'undefined') {
-        setTimeout(() => LegionChart.render(), 50);
-      }
-    }
     if (id === 'macro' && !window.macroChartLoaded) {
       initMacroChart();
       window.macroChartLoaded = true;
@@ -1860,10 +1819,31 @@
     }
   }
 
-  // Overview chart — Legion custom chart with POC, Levels, Zones
+  // Overview chart (smaller)
   function initOverviewChart() {
-    if (typeof LegionChart !== 'undefined') {
-      LegionChart.init('legion-chart');
+    const el = document.getElementById('overview-chart');
+    if (!el) return;
+    if (typeof TradingView !== 'undefined') {
+      new TradingView.widget({
+        autosize: true,
+        symbol: 'BINANCE:BTCUSDT',
+        interval: '4H',
+        timezone: 'Etc/UTC',
+        theme: 'dark',
+        style: '1',
+        locale: 'en',
+        toolbar_bg: '#0d0d18',
+        enable_publishing: false,
+        allow_symbol_change: false,
+        container_id: 'overview-chart',
+        hide_top_toolbar: true,
+        hide_side_toolbar: true,
+        backgroundColor: '#0d0d18',
+        overrides: {
+          'paneProperties.background': '#0d0d18',
+          'paneProperties.backgroundType': 'solid',
+        }
+      });
     }
   }
 
@@ -1894,10 +1874,7 @@
 
   // Init overview chart on load + render risk charts (default section)
   window.addEventListener('load', () => {
-    setTimeout(() => {
-      initOverviewChart();
-      window.legionChartLoaded = true;
-    }, 300);
+    setTimeout(initOverviewChart, 300);
     setTimeout(() => { if (window.LegionCharts) window.LegionCharts.render(); }, 400);
   });
 
