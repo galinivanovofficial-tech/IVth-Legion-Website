@@ -1,661 +1,854 @@
 // ═══════════════════════════════════════════════════════════════════
-//  IVth Legion — BTC Institutional Chart
-//  Candlestick chart with Volume Profile, POC, Key Levels, Period Zones
-//  Zero dependencies — Binance public API + Canvas
+//  IVth Legion — BTC Institutional Chart v4
+//  EMAs, VWAP, Volume Profile, POC, Key Levels, Period Zones, SVP
 // ═══════════════════════════════════════════════════════════════════
 
 window.LegionChart = (function () {
   'use strict';
 
-  const GOLD   = '#c9a84c';
-  const GOLD2  = '#e8c96a';
-  const GREEN  = '#26a65b';
-  const RED    = '#e74c3c';
-  const BG     = '#07070d';
-  const BG2    = '#0d0d18';
-  const GRID   = 'rgba(255,255,255,0.04)';
-  const TEXT   = 'rgba(255,255,255,0.35)';
-  const TEXT_BR = 'rgba(255,255,255,0.7)';
+  var C = {
+    bg:         '#131722',
+    bgPanel:    '#1e222d',
+    bgToolbar:  '#1c2030',
+    grid:       'rgba(42,46,57,0.40)',
+    gridFine:   'rgba(42,46,57,0.18)',
+    border:     '#2a2e39',
+    text:       '#787b86',
+    textBright: '#d1d4dc',
+    textWhite:  '#e0e3eb',
+    bull:       '#26a69a',
+    bear:       '#ef5350',
+    bullVol:    'rgba(38,166,154,0.22)',
+    bearVol:    'rgba(239,83,80,0.22)',
+    gold:       '#c9a84c',
+    goldDim:    'rgba(201,168,76,0.25)',
+    lvlD:       '#2962ff',
+    lvlW:       '#ab47bc',
+    lvlM:       '#ff9800',
+    zoneD:      'rgba(41,98,255,0.06)',
+    zoneW:      'rgba(171,71,188,0.06)',
+    zoneM:      'rgba(255,152,0,0.06)',
+    zoneBD:     'rgba(41,98,255,0.20)',
+    zoneBW:     'rgba(171,71,188,0.20)',
+    zoneBM:     'rgba(255,152,0,0.20)',
+    cross:      'rgba(120,123,134,0.5)',
+    vpBuy:      'rgba(38,166,154,0.45)',
+    vpSell:     'rgba(239,83,80,0.35)',
+    vpVA:       'rgba(38,166,154,0.12)',
+    activeTF:   '#2962ff',
+    svpAsia:    'rgba(255,193,7,0.10)',
+    svpEU:      'rgba(33,150,243,0.10)',
+    svpUS:      'rgba(76,175,80,0.10)',
+    svpAsiaBdr: 'rgba(255,193,7,0.28)',
+    svpEUBdr:   'rgba(33,150,243,0.28)',
+    svpUSBdr:   'rgba(76,175,80,0.28)',
+    watermark:  'rgba(42,46,57,0.30)',
+    ema21:      '#f7c948',
+    ema50:      '#42a5f5',
+    ema200:     '#ef5350',
+    vwap:       '#ab47bc',
+  };
 
-  // ── State ──
-  let candles = [];       // {t, o, h, l, c, v}
-  let dailyCandles = [];  // for levels/zones
-  let weeklyCandles = []; // computed from daily
-  let monthlyCandles = [];
+  var TIMEFRAMES = [
+    { label: '5m',  binance: '5m',  limit: 500 },
+    { label: '15m', binance: '15m', limit: 500 },
+    { label: '1H',  binance: '1h',  limit: 500 },
+    { label: '4H',  binance: '4h',  limit: 500 },
+    { label: '1D',  binance: '1d',  limit: 365 },
+    { label: '1W',  binance: '1w',  limit: 200 },
+  ];
 
-  let canvas, ctx, dpr;
-  let W, H;
-  let chartLeft = 70, chartRight = 60, chartTop = 10, chartBottom = 30;
-  let vpWidth = 80; // volume profile width
-  let priceMin, priceMax, timeMin, timeMax;
+  var SESSIONS = [
+    { name:'Asia',   h0:0,  h1:8,  color:C.svpAsia,  border:C.svpAsiaBdr },
+    { name:'London', h0:8,  h1:16, color:C.svpEU,    border:C.svpEUBdr   },
+    { name:'NY',     h0:16, h1:24, color:C.svpUS,    border:C.svpUSBdr   },
+  ];
 
-  // Overlays toggle state
-  let overlays = {
+  var candles = [];
+  var dailyCandles = [];
+  var weeklyCandles = [];
+  var monthlyCandles = [];
+  var currentTF = 2;
+
+  var canvas, ctx, dpr, containerEl;
+  var W, H;
+  var chartLeft = 0, chartRight = 78, chartTop = 0, chartBottom = 24;
+  var vpWidth = 92;
+  var priceMin, priceMax;
+
+  var overlays = {
     levels_daily: true,
     levels_weekly: true,
-    levels_monthly: false,
+    levels_monthly: true,
     zones_daily: true,
     zones_weekly: false,
     zones_monthly: false,
     volume_profile: true,
     poc: true,
+    svp: false,
+    ema21: true,
+    ema50: true,
+    ema200: false,
+    vwap: false,
   };
 
-  // Scroll/zoom
-  let visibleBars = 200;
-  let scrollOffset = 0;
-  let isDragging = false;
-  let dragStartX = 0;
-  let dragStartOffset = 0;
+  var visibleBars = 150;
+  var scrollOffset = 0;
+  var isDragging = false;
+  var dragStartX = 0;
+  var dragStartOffset = 0;
+  var mouseX = -1, mouseY = -1;
+  var showCrosshair = false;
+  var lastRefresh = 0;
+  var pulsePhase = 0;
+  var animFrame = 0;
 
-  // Crosshair
-  let mouseX = -1, mouseY = -1;
-  let showCrosshair = false;
-
-  // ── Data Fetch ──
-  async function fetchCandles(interval, limit) {
-    const url = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.map(d => ({
-      t: d[0],
-      o: parseFloat(d[1]),
-      h: parseFloat(d[2]),
-      l: parseFloat(d[3]),
-      c: parseFloat(d[4]),
-      v: parseFloat(d[5]),
-    }));
+  // ── Data ──
+  function fetchKlines(interval, limit) {
+    return fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval='+interval+'&limit='+limit)
+      .then(function(r){ return r.json(); })
+      .then(function(data){ return data.map(function(d){return{t:d[0],o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]};});});
   }
 
-  async function loadData() {
-    const [h1, d1] = await Promise.all([
-      fetchCandles('1h', 500),
-      fetchCandles('1d', 90),
-    ]);
-    candles = h1;
-    dailyCandles = d1;
-    weeklyCandles = aggregateCandles(d1, 'week');
-    monthlyCandles = aggregateCandles(d1, 'month');
-    visibleBars = Math.min(200, candles.length);
-    scrollOffset = 0;
-    render();
+  function loadData() {
+    var tf = TIMEFRAMES[currentTF];
+    return Promise.all([fetchKlines(tf.binance, tf.limit), fetchKlines('1d', 90)])
+      .then(function(res) {
+        candles = res[0];
+        dailyCandles = res[1];
+        weeklyCandles = aggregate(res[1], 'week');
+        monthlyCandles = aggregate(res[1], 'month');
+        computeIndicators();
+        visibleBars = Math.min(150, candles.length);
+        scrollOffset = 0;
+        lastRefresh = Date.now();
+        render();
+        updateOHLC(candles[candles.length - 1]);
+      });
   }
 
-  function aggregateCandles(daily, period) {
-    const groups = {};
-    daily.forEach(c => {
-      const d = new Date(c.t);
-      let key;
-      if (period === 'week') {
-        const jan1 = new Date(d.getFullYear(), 0, 1);
-        const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
-        key = d.getFullYear() + '-W' + week;
-      } else {
-        key = d.getFullYear() + '-' + (d.getMonth() + 1);
-      }
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(c);
+  function aggregate(daily, period) {
+    var g = {};
+    daily.forEach(function(c) {
+      var d = new Date(c.t);
+      var k = period === 'week'
+        ? d.getFullYear()+'-W'+Math.ceil(((d - new Date(d.getFullYear(),0,1))/864e5 + new Date(d.getFullYear(),0,1).getDay()+1)/7)
+        : d.getFullYear()+'-'+d.getMonth();
+      (g[k] = g[k] || []).push(c);
     });
-    return Object.values(groups).map(arr => ({
-      t: arr[0].t,
-      o: arr[0].o,
-      h: Math.max(...arr.map(c => c.h)),
-      l: Math.min(...arr.map(c => c.l)),
-      c: arr[arr.length - 1].c,
-      v: arr.reduce((s, c) => s + c.v, 0),
-    }));
+    return Object.values(g).map(function(a) {
+      return {
+        t:a[0].t, o:a[0].o,
+        h:Math.max.apply(null,a.map(function(c){return c.h;})),
+        l:Math.min.apply(null,a.map(function(c){return c.l;})),
+        c:a[a.length-1].c,
+        v:a.reduce(function(s,c){return s+c.v;},0),
+      };
+    });
+  }
+
+  // ── Indicators ──
+  function computeIndicators() {
+    calcEMA(21); calcEMA(50); calcEMA(200);
+    calcVWAP();
+  }
+
+  function calcEMA(len) {
+    var k = 2 / (len + 1);
+    var prev = candles.length > 0 ? candles[0].c : 0;
+    candles.forEach(function(c) {
+      prev = c.c * k + prev * (1 - k);
+      c['ema' + len] = prev;
+    });
+  }
+
+  function calcVWAP() {
+    var cumVol = 0, cumTP = 0;
+    var lastDay = -1;
+    candles.forEach(function(c) {
+      var d = new Date(c.t);
+      var day = d.getUTCFullYear() * 1000 + d.getUTCMonth() * 32 + d.getUTCDate();
+      if (day !== lastDay) { cumVol = 0; cumTP = 0; lastDay = day; }
+      var tp = (c.h + c.l + c.c) / 3;
+      cumVol += c.v;
+      cumTP += tp * c.v;
+      c.vwap = cumVol > 0 ? cumTP / cumVol : tp;
+    });
   }
 
   // ── Volume Profile ──
-  function calcVolumeProfile(visCandles, bins) {
-    if (!visCandles.length) return { levels: [], poc: 0 };
-    const lo = Math.min(...visCandles.map(c => c.l));
-    const hi = Math.max(...visCandles.map(c => c.h));
-    const step = (hi - lo) / bins;
-    if (step <= 0) return { levels: [], poc: (hi + lo) / 2 };
-
-    const levels = Array.from({ length: bins }, (_, i) => ({
-      price: lo + step * i + step / 2,
-      vol: 0,
-      buyVol: 0,
-    }));
-
-    visCandles.forEach(c => {
-      const bull = c.c >= c.o;
-      const range = c.h - c.l || 1;
-      for (let i = 0; i < bins; i++) {
-        const pLo = lo + step * i;
-        const pHi = pLo + step;
-        const overlap = Math.max(0, Math.min(c.h, pHi) - Math.max(c.l, pLo));
-        const share = overlap / range;
-        const vol = c.v * share;
+  function calcVP(vis, bins) {
+    if (!vis.length) return { levels:[], poc:0, maxVol:0, vaH:0, vaL:0 };
+    var lo = Infinity, hi = -Infinity;
+    vis.forEach(function(c){ if(c.l<lo)lo=c.l; if(c.h>hi)hi=c.h; });
+    var step = (hi-lo)/bins;
+    if (step <= 0) return { levels:[], poc:(hi+lo)/2, maxVol:0, vaH:0, vaL:0 };
+    var levels = [];
+    for (var i = 0; i < bins; i++) levels.push({price:lo+step*i+step/2, vol:0, buyVol:0});
+    vis.forEach(function(c) {
+      var bull = c.c >= c.o;
+      var range = c.h - c.l || 1;
+      for (var i = 0; i < bins; i++) {
+        var overlap = Math.max(0, Math.min(c.h, lo+step*(i+1)) - Math.max(c.l, lo+step*i));
+        var vol = c.v * (overlap/range);
         levels[i].vol += vol;
         if (bull) levels[i].buyVol += vol;
       }
     });
-
-    let maxVol = 0, pocIdx = 0;
-    levels.forEach((l, i) => { if (l.vol > maxVol) { maxVol = l.vol; pocIdx = i; } });
-
-    return { levels, poc: levels[pocIdx]?.price || 0, maxVol };
+    var maxVol = 0, pocIdx = 0, totalVol = 0;
+    levels.forEach(function(l,i){ if(l.vol>maxVol){maxVol=l.vol;pocIdx=i;} totalVol+=l.vol; });
+    // Value Area (70%)
+    var vaTarget = totalVol * 0.7;
+    var vaVol = levels[pocIdx].vol;
+    var vaLo = pocIdx, vaHi = pocIdx;
+    while (vaVol < vaTarget && (vaLo > 0 || vaHi < bins - 1)) {
+      var addLo = vaLo > 0 ? levels[vaLo - 1].vol : 0;
+      var addHi = vaHi < bins - 1 ? levels[vaHi + 1].vol : 0;
+      if (addLo >= addHi && vaLo > 0) { vaLo--; vaVol += levels[vaLo].vol; }
+      else if (vaHi < bins - 1) { vaHi++; vaVol += levels[vaHi].vol; }
+      else break;
+    }
+    return {
+      levels: levels, poc: levels[pocIdx] ? levels[pocIdx].price : 0,
+      maxVol: maxVol, vaH: levels[vaHi].price + step/2, vaL: levels[vaLo].price - step/2
+    };
   }
 
-  // ── Key Levels (previous period close/high/low) ──
+  // ── SVP ──
+  function calcSVPs(vis, startIdx) {
+    var tf = TIMEFRAMES[currentTF];
+    if (tf.label === '1D' || tf.label === '1W') return [];
+    var sessions = [], cur = null;
+    vis.forEach(function(c, i) {
+      var d = new Date(c.t);
+      var h = d.getUTCHours();
+      var sess = h < 8 ? 0 : h < 16 ? 1 : 2;
+      var dayKey = d.getUTCFullYear()+'-'+d.getUTCMonth()+'-'+d.getUTCDate()+'-'+sess;
+      if (!cur || cur.key !== dayKey) {
+        cur = { key:dayKey, sess:sess, candles:[], si:startIdx+i, ei:startIdx+i };
+        sessions.push(cur);
+      }
+      cur.candles.push(c);
+      cur.ei = startIdx + i;
+    });
+    return sessions.map(function(s) {
+      var vp = calcVP(s.candles, 30);
+      return { sess:s.sess, si:s.si, ei:s.ei, vp:vp, candles:s.candles };
+    }).filter(function(s){ return s.vp.maxVol > 0 && s.candles.length >= 3; });
+  }
+
+  // ── Key Levels ──
   function getKeyLevels() {
-    const levels = [];
-    const now = Date.now();
-
-    // Find previous completed period
-    function prevPeriod(arr, label, colors) {
+    var levels = [];
+    function add(arr, pref, color) {
       if (arr.length < 2) return;
-      const prev = arr[arr.length - 2]; // second to last = previous completed
-      levels.push({ price: prev.c, label: label + ' Close', color: colors[0], dash: [6, 4] });
-      levels.push({ price: prev.h, label: label + ' High', color: colors[1], dash: [3, 3] });
-      levels.push({ price: prev.l, label: label + ' Low', color: colors[2], dash: [3, 3] });
+      var prev = arr[arr.length-2], curr = arr[arr.length-1];
+      levels.push({ price:prev.h, label:pref+' High', color:color, dash:[3,3], weight:0.7 });
+      levels.push({ price:prev.l, label:pref+' Low',  color:color, dash:[3,3], weight:0.7 });
+      levels.push({ price:prev.c, label:pref+' Close',color:color, dash:[6,3], weight:1 });
+      levels.push({ price:curr.o, label:pref+' Open', color:color, dash:[2,4], weight:0.5 });
     }
-
-    if (overlays.levels_daily) prevPeriod(dailyCandles, 'D', ['#5b9bd5', '#5b9bd5', '#5b9bd5']);
-    if (overlays.levels_weekly) prevPeriod(weeklyCandles, 'W', ['#c678dd', '#c678dd', '#c678dd']);
-    if (overlays.levels_monthly) prevPeriod(monthlyCandles, 'M', ['#e5c07b', '#e5c07b', '#e5c07b']);
-
+    if (overlays.levels_daily)   add(dailyCandles,   'D', C.lvlD);
+    if (overlays.levels_weekly)  add(weeklyCandles,  'W', C.lvlW);
+    if (overlays.levels_monthly) add(monthlyCandles, 'M', C.lvlM);
     return levels;
   }
 
-  // ── Period Zones (previous period range as shaded rectangle) ──
   function getPeriodZones() {
-    const zones = [];
-
-    function addZone(arr, label, color) {
-      if (arr.length < 2) return;
-      const prev = arr[arr.length - 2];
-      zones.push({ high: prev.h, low: prev.l, label: 'Prev ' + label, color });
+    var zones = [];
+    function add(arr, label, fill, border) {
+      if (arr.length<2) return;
+      var p = arr[arr.length-2];
+      zones.push({ high:p.h, low:p.l, label:label, fill:fill, border:border });
     }
-
-    if (overlays.zones_daily) addZone(dailyCandles, 'Day', 'rgba(91,155,213,0.06)');
-    if (overlays.zones_weekly) addZone(weeklyCandles, 'Week', 'rgba(198,120,221,0.06)');
-    if (overlays.zones_monthly) addZone(monthlyCandles, 'Month', 'rgba(229,192,123,0.06)');
-
+    if (overlays.zones_daily)   add(dailyCandles,'Prev Day',C.zoneD,C.zoneBD);
+    if (overlays.zones_weekly)  add(weeklyCandles,'Prev Week',C.zoneW,C.zoneBW);
+    if (overlays.zones_monthly) add(monthlyCandles,'Prev Month',C.zoneM,C.zoneBM);
     return zones;
   }
 
-  // ── Coordinate Mapping ──
-  function priceToY(p) {
-    const plotH = H - chartTop - chartBottom;
-    return chartTop + plotH * (1 - (p - priceMin) / (priceMax - priceMin));
-  }
-  function yToPrice(y) {
-    const plotH = H - chartTop - chartBottom;
-    return priceMin + (1 - (y - chartTop) / plotH) * (priceMax - priceMin);
-  }
+  // ── Mapping ──
+  function getPlotW() { return W - chartLeft - chartRight - (overlays.volume_profile ? vpWidth : 0); }
+  function priceToY(p) { return chartTop + (H-chartTop-chartBottom) * (1 - (p-priceMin)/(priceMax-priceMin)); }
+  function yToPrice(y) { return priceMin + (1 - (y-chartTop)/(H-chartTop-chartBottom)) * (priceMax-priceMin); }
   function barToX(i) {
-    const plotW = W - chartLeft - chartRight - (overlays.volume_profile ? vpWidth : 0);
-    const startIdx = candles.length - visibleBars - scrollOffset;
-    return chartLeft + ((i - startIdx) + 0.5) * (plotW / visibleBars);
+    var plotW = getPlotW();
+    var start = candles.length - visibleBars - scrollOffset;
+    return chartLeft + ((i-start)+0.5) * (plotW/visibleBars);
   }
 
   // ── Render ──
   function render() {
     if (!canvas || !candles.length) return;
-    const rect = canvas.parentElement.getBoundingClientRect();
+    var rect = canvas.parentElement.getBoundingClientRect();
     if (rect.width < 10 || rect.height < 10) return;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = rect.width; H = rect.height;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
 
-    const startIdx = Math.max(0, candles.length - visibleBars - scrollOffset);
-    const endIdx = Math.min(candles.length, startIdx + visibleBars);
-    const vis = candles.slice(startIdx, endIdx);
-
+    var si = Math.max(0, candles.length-visibleBars-scrollOffset);
+    var ei = Math.min(candles.length, si+visibleBars);
+    var vis = candles.slice(si, ei);
     if (!vis.length) return;
 
-    // Price range with padding
-    const rawMin = Math.min(...vis.map(c => c.l));
-    const rawMax = Math.max(...vis.map(c => c.h));
-    const pad = (rawMax - rawMin) * 0.06;
+    var rawMin = Infinity, rawMax = -Infinity;
+    vis.forEach(function(c){ if(c.l<rawMin)rawMin=c.l; if(c.h>rawMax)rawMax=c.h; });
+    var pad = (rawMax-rawMin)*0.08;
     priceMin = rawMin - pad;
     priceMax = rawMax + pad;
-    timeMin = vis[0].t;
-    timeMax = vis[vis.length - 1].t;
 
-    // Clear
-    ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, W, H);
+    var showVP = overlays.volume_profile;
+    var plotW = getPlotW();
+    var plotH = H - chartTop - chartBottom;
+    var barW = plotW / visibleBars;
+    var candleW = Math.max(1, barW*0.62);
 
-    const plotW = W - chartLeft - chartRight - (overlays.volume_profile ? vpWidth : 0);
-    const plotH = H - chartTop - chartBottom;
-    const barW = plotW / visibleBars;
-    const candleW = Math.max(1, barW * 0.6);
+    // BG + gradient vignette
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0,0,W,H);
+    var grad = ctx.createRadialGradient(chartLeft+plotW/2, plotH/2, 0, chartLeft+plotW/2, plotH/2, plotW*0.7);
+    grad.addColorStop(0, 'rgba(25,28,39,0.35)');
+    grad.addColorStop(1, 'rgba(19,23,34,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    drawWatermark(plotW);
 
     // Grid
-    drawGrid(plotW, plotH);
+    var range = priceMax-priceMin;
+    var step = niceStep(range, 6);
+    var gs = Math.ceil(priceMin/step)*step;
+    for (var p = gs; p <= priceMax; p += step) {
+      var y = Math.round(priceToY(p))+0.5;
+      ctx.strokeStyle = C.grid; ctx.lineWidth = 0.5;
+      ctx.setLineDash([1,3]);
+      ctx.beginPath(); ctx.moveTo(chartLeft,y); ctx.lineTo(chartLeft+plotW+(showVP?vpWidth:0),y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    var tSkip = Math.max(1, Math.floor(80/barW));
+    vis.forEach(function(c,i) {
+      if (i%tSkip !== 0) return;
+      var x = barToX(si+i);
+      ctx.strokeStyle = C.gridFine; ctx.lineWidth = 0.5;
+      ctx.setLineDash([1,3]);
+      ctx.beginPath(); ctx.moveTo(Math.round(x)+0.5, chartTop); ctx.lineTo(Math.round(x)+0.5, H-chartBottom); ctx.stroke();
+      ctx.setLineDash([]);
+    });
 
-    // Period zones (behind candles)
-    getPeriodZones().forEach(z => {
-      const y1 = priceToY(z.high);
-      const y2 = priceToY(z.low);
-      ctx.fillStyle = z.color;
-      ctx.fillRect(chartLeft, y1, plotW, y2 - y1);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.font = '9px Inter, sans-serif';
-      ctx.fillText(z.label, chartLeft + 6, y1 + 12);
+    // Period Zones
+    getPeriodZones().forEach(function(z) {
+      var y1 = priceToY(z.high), y2 = priceToY(z.low);
+      var zGrad = ctx.createLinearGradient(0, y1, 0, y2);
+      zGrad.addColorStop(0, z.fill);
+      zGrad.addColorStop(0.5, z.border.replace(/[\d.]+\)$/, '0.04)'));
+      zGrad.addColorStop(1, z.fill);
+      ctx.fillStyle = zGrad;
+      ctx.fillRect(chartLeft, y1, plotW, y2-y1);
+      ctx.strokeStyle = z.border; ctx.lineWidth = 0.5;
+      ctx.setLineDash([4,4]);
+      ctx.strokeRect(chartLeft, y1, plotW, y2-y1);
+      ctx.setLineDash([]);
+      ctx.fillStyle = z.border;
+      ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(z.label, chartLeft+5, y1+13);
     });
 
     // Key Levels
-    getKeyLevels().forEach(lv => {
-      const y = priceToY(lv.price);
-      if (y < chartTop || y > H - chartBottom) return;
+    getKeyLevels().forEach(function(lv) {
+      var y = priceToY(lv.price);
+      if (y < chartTop || y > H-chartBottom) return;
       ctx.beginPath();
       ctx.setLineDash(lv.dash);
-      ctx.strokeStyle = lv.color;
-      ctx.lineWidth = 0.8;
-      ctx.moveTo(chartLeft, y);
-      ctx.lineTo(chartLeft + plotW, y);
+      ctx.strokeStyle = lv.color + (lv.weight > 0.8 ? 'bb' : '77');
+      ctx.lineWidth = lv.weight;
+      ctx.moveTo(chartLeft, Math.round(y)+0.5);
+      ctx.lineTo(chartLeft+plotW, Math.round(y)+0.5);
       ctx.stroke();
       ctx.setLineDash([]);
-
-      // Label on right
-      ctx.fillStyle = lv.color;
-      ctx.font = '9px Inter, sans-serif';
-      ctx.textAlign = 'left';
-      const labelX = chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0) + 4;
-      ctx.fillText(lv.label, labelX, y + 3);
-
-      // Price on left axis
-      ctx.textAlign = 'right';
-      ctx.fillText(fmtPrice(lv.price), chartLeft - 6, y + 3);
     });
 
-    // Candlesticks + volume bars
-    const maxVol = Math.max(...vis.map(c => c.v));
-    const volH = plotH * 0.12;
+    // SVP
+    if (overlays.svp) drawSVPs(vis, si, barW, plotH);
 
-    vis.forEach((c, i) => {
-      const gi = startIdx + i; // global index
-      const x = barToX(gi);
-      const bull = c.c >= c.o;
-      const color = bull ? GREEN : RED;
+    // Volume bars (gradient)
+    var maxVol = 0;
+    vis.forEach(function(c){ if(c.v>maxVol) maxVol=c.v; });
+    var volH = plotH * 0.15;
+    vis.forEach(function(c,i) {
+      var x = barToX(si+i);
+      var bull = c.c >= c.o;
+      var vh = (c.v/maxVol)*volH;
+      var vGrad = ctx.createLinearGradient(0, H-chartBottom-vh, 0, H-chartBottom);
+      var baseCol = bull ? C.bull : C.bear;
+      vGrad.addColorStop(0, baseCol.replace(')', ',0.28)').replace('rgb', 'rgba'));
+      vGrad.addColorStop(1, baseCol.replace(')', ',0.04)').replace('rgb', 'rgba'));
+      ctx.fillStyle = bull ? C.bullVol : C.bearVol;
+      ctx.fillRect(x-candleW/2, H-chartBottom-vh, candleW, vh);
+    });
 
-      // Volume bar (bottom)
-      const vh = (c.v / maxVol) * volH;
-      ctx.fillStyle = bull ? 'rgba(38,166,91,0.15)' : 'rgba(231,76,60,0.15)';
-      ctx.fillRect(x - candleW / 2, H - chartBottom - vh, candleW, vh);
+    // EMA lines
+    if (overlays.ema200) drawEMALine(vis, si, 'ema200', C.ema200, 1.2);
+    if (overlays.ema50)  drawEMALine(vis, si, 'ema50',  C.ema50,  1);
+    if (overlays.ema21)  drawEMALine(vis, si, 'ema21',  C.ema21,  0.8);
 
+    // VWAP
+    if (overlays.vwap) drawEMALine(vis, si, 'vwap', C.vwap, 1.2);
+
+    // Candlesticks
+    vis.forEach(function(c,i) {
+      var x = barToX(si+i);
+      var bull = c.c >= c.o;
+      var hY = priceToY(c.h), lY = priceToY(c.l);
+      var oY = priceToY(c.o), cY = priceToY(c.c);
+      var bTop = Math.min(oY,cY), bH = Math.max(1, Math.abs(cY-oY));
+      var col = bull ? C.bull : C.bear;
       // Wick
-      const highY = priceToY(c.h);
-      const lowY = priceToY(c.l);
+      ctx.strokeStyle = col; ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.moveTo(x, highY);
-      ctx.lineTo(x, lowY);
+      ctx.moveTo(Math.round(x)+0.5, hY);
+      ctx.lineTo(Math.round(x)+0.5, lY);
       ctx.stroke();
-
       // Body
-      const openY = priceToY(c.o);
-      const closeY = priceToY(c.c);
-      const bodyH = Math.max(1, Math.abs(closeY - openY));
-      ctx.fillStyle = color;
-      if (bull) {
-        ctx.fillRect(x - candleW / 2, closeY, candleW, bodyH);
-      } else {
-        ctx.fillRect(x - candleW / 2, openY, candleW, bodyH);
-      }
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round(x-candleW/2), bTop, Math.ceil(candleW), bH);
     });
 
-    // Volume Profile
-    if (overlays.volume_profile || overlays.poc) {
-      const vp = calcVolumeProfile(vis, 60);
-      const vpX = chartLeft + plotW;
-
-      if (overlays.volume_profile && vp.maxVol > 0) {
-        vp.levels.forEach(lv => {
-          const y = priceToY(lv.price);
-          const w = (lv.vol / vp.maxVol) * vpWidth * 0.9;
-          const buyW = (lv.buyVol / vp.maxVol) * vpWidth * 0.9;
-          // Sell volume
-          ctx.fillStyle = 'rgba(231,76,60,0.25)';
-          ctx.fillRect(vpX, y - plotH / 120, w, plotH / 60);
-          // Buy volume on top
-          ctx.fillStyle = 'rgba(38,166,91,0.35)';
-          ctx.fillRect(vpX, y - plotH / 120, buyW, plotH / 60);
+    // Volume Profile + Value Area
+    if (showVP || overlays.poc) {
+      var vp = calcVP(vis, 80);
+      var vpX = chartLeft+plotW;
+      if (showVP && vp.maxVol > 0) {
+        var vpBarH = plotH/80;
+        // Value Area highlight
+        var vaTop = priceToY(vp.vaH);
+        var vaBot = priceToY(vp.vaL);
+        ctx.fillStyle = C.vpVA;
+        ctx.fillRect(chartLeft, vaTop, plotW, vaBot - vaTop);
+        // VP bars
+        vp.levels.forEach(function(lv) {
+          var y = priceToY(lv.price);
+          var w = (lv.vol/vp.maxVol)*vpWidth*0.92;
+          var buyW = (lv.buyVol/vp.maxVol)*vpWidth*0.92;
+          ctx.fillStyle = C.vpSell;
+          ctx.fillRect(vpX+2, y-vpBarH/2, w, vpBarH-1);
+          ctx.fillStyle = C.vpBuy;
+          ctx.fillRect(vpX+2, y-vpBarH/2, buyW, vpBarH-1);
         });
       }
-
-      // POC line
       if (overlays.poc && vp.poc) {
-        const pocY = priceToY(vp.poc);
-        ctx.beginPath();
-        ctx.setLineDash([8, 4]);
-        ctx.strokeStyle = GOLD;
-        ctx.lineWidth = 1.2;
-        ctx.moveTo(chartLeft, pocY);
-        ctx.lineTo(chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0), pocY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // POC label
-        ctx.fillStyle = BG2;
-        const pocLabel = 'POC ' + fmtPrice(vp.poc);
-        const tw = ctx.measureText(pocLabel).width + 12;
-        ctx.fillRect(chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0) + 2, pocY - 8, tw, 16);
-        ctx.fillStyle = GOLD;
-        ctx.font = 'bold 9px Inter, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(pocLabel, chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0) + 8, pocY + 3);
+        var py = priceToY(vp.poc);
+        ctx.beginPath(); ctx.setLineDash([8,4]);
+        ctx.strokeStyle = C.gold; ctx.lineWidth = 1;
+        ctx.moveTo(chartLeft, Math.round(py)+0.5);
+        ctx.lineTo(chartLeft+plotW+(showVP?vpWidth:0), Math.round(py)+0.5);
+        ctx.stroke(); ctx.setLineDash([]);
       }
     }
 
-    // Right price axis
-    drawPriceAxis(plotW);
+    // Axis panel
+    ctx.fillStyle = C.bgPanel;
+    ctx.fillRect(chartLeft+plotW+(showVP?vpWidth:0), 0, chartRight, H);
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(chartLeft+plotW+(showVP?vpWidth:0), 0);
+    ctx.lineTo(chartLeft+plotW+(showVP?vpWidth:0), H);
+    ctx.stroke();
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H-chartBottom); ctx.lineTo(W, H-chartBottom); ctx.stroke();
+
+    // Price axis labels
+    ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'right';
+    var axisX = chartLeft+plotW+(showVP?vpWidth:0)+chartRight-6;
+    for (var p = gs; p <= priceMax; p += step) {
+      ctx.fillStyle = C.text;
+      ctx.fillText(fmtP(p), axisX, priceToY(p)+4);
+    }
+
+    // Key level badges on axis
+    getKeyLevels().forEach(function(lv) {
+      var y = priceToY(lv.price);
+      if (y < chartTop || y > H-chartBottom) return;
+      var lbl = lv.label;
+      ctx.font = '10px Inter,sans-serif';
+      var tw = ctx.measureText(lbl).width + 8;
+      var lx = chartLeft+plotW+(showVP?vpWidth:0)+2;
+      ctx.fillStyle = lv.color+'18';
+      rrect(ctx, lx, y-8, tw, 16, 2); ctx.fill();
+      ctx.fillStyle = lv.color; ctx.textAlign = 'left';
+      ctx.fillText(lbl, lx+4, y+4);
+    });
+
+    // POC badge
+    if (overlays.poc) {
+      var vp2 = calcVP(vis, 80);
+      if (vp2.poc) {
+        var py2 = priceToY(vp2.poc);
+        var pl2 = 'POC '+fmtP(vp2.poc);
+        ctx.font = 'bold 10px Inter,sans-serif';
+        var ptw2 = ctx.measureText(pl2).width+10;
+        var px2 = chartLeft+plotW+(showVP?vpWidth:0)+2;
+        ctx.fillStyle = C.goldDim;
+        rrect(ctx, px2, py2-9, ptw2, 18, 2); ctx.fill();
+        ctx.fillStyle = C.gold; ctx.textAlign = 'left';
+        ctx.fillText(pl2, px2+5, py2+4);
+      }
+    }
 
     // Time axis
-    drawTimeAxis(vis, startIdx, plotW, barW);
+    ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+    var ts2 = Math.max(1, Math.floor(65/barW));
+    vis.forEach(function(c,i) {
+      if (i%ts2 !== 0) return;
+      var x = barToX(si+i);
+      var d = new Date(c.t);
+      var tf = TIMEFRAMES[currentTF];
+      var label;
+      if (tf.label === '1D' || tf.label === '1W') {
+        label = d.toLocaleDateString('en-US', {month:'short',day:'numeric'});
+      } else if (d.getUTCHours() === 0 && tf.label !== '5m') {
+        label = d.toLocaleDateString('en-US', {month:'short',day:'numeric'});
+      } else {
+        label = String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+      }
+      ctx.fillStyle = C.text;
+      ctx.fillText(label, x, H-chartBottom+15);
+      ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(Math.round(x)+0.5, H-chartBottom); ctx.lineTo(Math.round(x)+0.5, H-chartBottom+4); ctx.stroke();
+    });
+
+    // Current price + pulse
+    var last = vis[vis.length-1];
+    if (last) {
+      var cpY = priceToY(last.c);
+      var bull = last.c >= last.o;
+      var col = bull ? C.bull : C.bear;
+      ctx.beginPath(); ctx.setLineDash([4,3]);
+      ctx.strokeStyle = col+'88'; ctx.lineWidth = 1;
+      ctx.moveTo(chartLeft, Math.round(cpY)+0.5);
+      ctx.lineTo(chartLeft+plotW+(showVP?vpWidth:0), Math.round(cpY)+0.5);
+      ctx.stroke(); ctx.setLineDash([]);
+      var tag = fmtP(last.c);
+      ctx.font = 'bold 11px Inter,sans-serif';
+      var tagW = ctx.measureText(tag).width+16;
+      var tagX = chartLeft+plotW+(showVP?vpWidth:0);
+      // Glow
+      ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.fillStyle = col;
+      rrect(ctx, tagX, cpY-10, tagW+8, 20, 3); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.fillStyle = col;
+      ctx.moveTo(tagX, cpY-5); ctx.lineTo(tagX-5, cpY); ctx.lineTo(tagX, cpY+5); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+      ctx.fillText(tag, tagX+8, cpY+4);
+      // Pulse dot
+      var pulse = 0.4 + 0.6 * Math.abs(Math.sin(pulsePhase));
+      ctx.beginPath();
+      ctx.arc(tagX + tagW + 14, cpY, 3, 0, Math.PI*2);
+      ctx.fillStyle = col.replace(')', ','+pulse+')').replace('rgb','rgba').replace('#','');
+      if (col.charAt(0) === '#') {
+        var r = parseInt(col.slice(1,3),16), g = parseInt(col.slice(3,5),16), b = parseInt(col.slice(5,7),16);
+        ctx.fillStyle = 'rgba('+r+','+g+','+b+','+pulse+')';
+      }
+      ctx.fill();
+    }
 
     // Crosshair
-    if (showCrosshair && mouseX > chartLeft && mouseX < chartLeft + plotW && mouseY > chartTop && mouseY < H - chartBottom) {
-      drawCrosshair(vis, startIdx, plotW, barW);
-    }
-
-    // Current price line
-    const lastC = vis[vis.length - 1];
-    if (lastC) {
-      const cpY = priceToY(lastC.c);
-      const cpColor = lastC.c >= lastC.o ? GREEN : RED;
-      ctx.beginPath();
-      ctx.setLineDash([2, 2]);
-      ctx.strokeStyle = cpColor;
-      ctx.lineWidth = 0.8;
-      ctx.moveTo(chartLeft, cpY);
-      ctx.lineTo(chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0), cpY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Price tag
-      ctx.fillStyle = cpColor;
-      const pTag = fmtPrice(lastC.c);
-      const ptw = ctx.measureText(pTag).width + 14;
-      ctx.fillRect(W - chartRight - ptw + (overlays.volume_profile ? 0 : vpWidth), cpY - 9, ptw, 18);
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 10px Inter, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(pTag, W - chartRight + (overlays.volume_profile ? 0 : vpWidth) - 4, cpY + 4);
+    if (showCrosshair && mouseX > chartLeft && mouseX < chartLeft+plotW && mouseY > chartTop && mouseY < H-chartBottom) {
+      drawCrosshair(vis, si, plotW, barW, candleW);
     }
   }
 
-  function drawGrid(plotW, plotH) {
-    const range = priceMax - priceMin;
-    const step = niceStep(range, 8);
-    const start = Math.ceil(priceMin / step) * step;
-
-    ctx.strokeStyle = GRID;
-    ctx.lineWidth = 0.5;
-    ctx.font = '10px Inter, sans-serif';
-    ctx.fillStyle = TEXT;
-    ctx.textAlign = 'right';
-
-    for (let p = start; p <= priceMax; p += step) {
-      const y = priceToY(p);
-      ctx.beginPath();
-      ctx.moveTo(chartLeft, y);
-      ctx.lineTo(chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0), y);
-      ctx.stroke();
-    }
+  function drawEMALine(vis, si, key, color, width) {
+    if (vis.length < 2) return;
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineJoin = 'round';
+    var started = false;
+    vis.forEach(function(c, i) {
+      var val = c[key];
+      if (val === undefined || val === null) return;
+      var x = barToX(si + i);
+      var y = priceToY(val);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
   }
 
-  function drawPriceAxis(plotW) {
-    const range = priceMax - priceMin;
-    const step = niceStep(range, 8);
-    const start = Math.ceil(priceMin / step) * step;
-
-    ctx.font = '10px Inter, sans-serif';
-    ctx.fillStyle = TEXT;
-    ctx.textAlign = 'right';
-
-    for (let p = start; p <= priceMax; p += step) {
-      const y = priceToY(p);
-      ctx.fillText(fmtPrice(p), chartLeft - 8, y + 3);
-    }
-  }
-
-  function drawTimeAxis(vis, startIdx, plotW, barW) {
-    ctx.font = '9px Inter, sans-serif';
-    ctx.fillStyle = TEXT;
+  function drawWatermark(plotW) {
+    ctx.save();
+    ctx.font = 'bold 44px Cinzel,serif';
+    ctx.fillStyle = C.watermark;
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('IVth LEGION', chartLeft + plotW/2, (H-chartBottom)/2 - 12);
+    ctx.font = '12px Inter,sans-serif';
+    ctx.fillStyle = 'rgba(42,46,57,0.22)';
+    ctx.fillText('BTCUSDT · Binance Perpetual · '+TIMEFRAMES[currentTF].label, chartLeft + plotW/2, (H-chartBottom)/2 + 16);
+    ctx.restore();
+  }
 
-    const skip = Math.max(1, Math.floor(40 / barW));
-    vis.forEach((c, i) => {
-      if (i % skip !== 0) return;
-      const x = barToX(startIdx + i);
-      const d = new Date(c.t);
-      const h = d.getUTCHours();
-      let label;
-      if (h === 0) {
-        label = (d.getUTCMonth() + 1) + '/' + d.getUTCDate();
-      } else {
-        label = String(h).padStart(2, '0') + ':00';
-      }
-      ctx.fillText(label, x, H - chartBottom + 16);
+  function drawSVPs(vis, si, barW, plotH) {
+    var svps = calcSVPs(vis, si);
+    svps.forEach(function(s) {
+      var sess = SESSIONS[s.sess];
+      var x0 = barToX(s.si) - barW/2;
+      var x1 = barToX(s.ei) + barW/2;
+      var segW = x1 - x0;
+      if (segW < 10 || !s.vp.levels.length) return;
+      ctx.fillStyle = sess.color;
+      ctx.fillRect(x0, chartTop, segW, H-chartTop-chartBottom);
+      var vpBarH = plotH / 30;
+      s.vp.levels.forEach(function(lv) {
+        var y = priceToY(lv.price);
+        var w = (lv.vol / s.vp.maxVol) * segW * 0.4;
+        ctx.fillStyle = sess.border;
+        ctx.fillRect(x0, y - vpBarH/2, w, vpBarH - 1);
+      });
+      ctx.font = '9px Inter,sans-serif';
+      ctx.fillStyle = sess.border; ctx.textAlign = 'left';
+      ctx.fillText(sess.name, x0 + 3, chartTop + 11);
     });
   }
 
-  function drawCrosshair(vis, startIdx, plotW, barW) {
-    const price = yToPrice(mouseY);
-
-    // Horizontal line
+  function drawCrosshair(vis, si, plotW, barW, candleW) {
+    var showVP = overlays.volume_profile;
+    ctx.strokeStyle = C.cross; ctx.lineWidth = 0.5; ctx.setLineDash([4,3]);
     ctx.beginPath();
-    ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 0.5;
-    ctx.moveTo(chartLeft, mouseY);
-    ctx.lineTo(chartLeft + plotW + (overlays.volume_profile ? vpWidth : 0), mouseY);
-    ctx.stroke();
-
-    // Vertical line
-    ctx.moveTo(mouseX, chartTop);
-    ctx.lineTo(mouseX, H - chartBottom);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.moveTo(chartLeft, mouseY); ctx.lineTo(chartLeft+plotW+(showVP?vpWidth:0), mouseY);
+    ctx.moveTo(mouseX, chartTop); ctx.lineTo(mouseX, H-chartBottom);
+    ctx.stroke(); ctx.setLineDash([]);
 
     // Price label
-    ctx.fillStyle = '#1a1a2e';
-    const priceStr = fmtPrice(price);
-    const tw = ctx.measureText(priceStr).width + 10;
-    ctx.fillRect(2, mouseY - 8, chartLeft - 6, 16);
-    ctx.fillStyle = TEXT_BR;
-    ctx.font = '10px Inter, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(priceStr, chartLeft - 8, mouseY + 3);
+    var price = yToPrice(mouseY);
+    var pStr = fmtP(price);
+    ctx.font = '11px Inter,sans-serif';
+    var plw = ctx.measureText(pStr).width+12;
+    var axX = chartLeft+plotW+(showVP?vpWidth:0);
+    ctx.fillStyle = '#363a45';
+    rrect(ctx, axX, mouseY-10, plw+8, 20, 2); ctx.fill();
+    ctx.fillStyle = C.textWhite; ctx.textAlign = 'left';
+    ctx.fillText(pStr, axX+8, mouseY+4);
 
-    // Find closest candle
-    const closestIdx = Math.round((mouseX - chartLeft) / barW - 0.5) + startIdx;
-    if (closestIdx >= 0 && closestIdx < candles.length) {
-      const c = candles[closestIdx];
-      drawOHLCTooltip(c);
+    // Candle highlight
+    var ci = Math.round((mouseX-chartLeft)/barW-0.5)+Math.max(0, candles.length-visibleBars-scrollOffset);
+    if (ci >= 0 && ci < candles.length) {
+      var c = candles[ci];
+      var cx = barToX(ci);
+      // Highlight glow
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      ctx.fillRect(cx - barW/2, chartTop, barW, H-chartTop-chartBottom);
+
+      var d = new Date(c.t);
+      var ts = d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+      ctx.font = '11px Inter,sans-serif';
+      var tlw = ctx.measureText(ts).width+12;
+      var tx = barToX(ci);
+      ctx.fillStyle = '#363a45';
+      rrect(ctx, tx-tlw/2, H-chartBottom, tlw, 18, 2); ctx.fill();
+      ctx.fillStyle = C.textWhite; ctx.textAlign = 'center';
+      ctx.fillText(ts, tx, H-chartBottom+13);
+      updateOHLC(c);
     }
   }
 
-  function drawOHLCTooltip(c) {
-    const d = new Date(c.t);
-    const dateStr = d.toUTCString().slice(0, 16);
-    const bull = c.c >= c.o;
-
-    ctx.font = '10px Inter, sans-serif';
-    ctx.textAlign = 'left';
-    const x = chartLeft + 8;
-    const y = chartTop + 14;
-
-    const items = [
-      { l: dateStr, c: TEXT },
-      { l: 'O ' + fmtPrice(c.o), c: TEXT_BR },
-      { l: 'H ' + fmtPrice(c.h), c: TEXT_BR },
-      { l: 'L ' + fmtPrice(c.l), c: TEXT_BR },
-      { l: 'C ' + fmtPrice(c.c), c: bull ? GREEN : RED },
-      { l: 'Vol ' + fmtVol(c.v), c: TEXT },
-    ];
-
-    let xOff = x;
-    items.forEach(item => {
-      ctx.fillStyle = item.c;
-      ctx.fillText(item.l, xOff, y);
-      xOff += ctx.measureText(item.l).width + 14;
-    });
+  function updateOHLC(c) {
+    var ohlcEl = document.getElementById('legion-ohlc');
+    if (!ohlcEl || !c) return;
+    var bull = c.c >= c.o;
+    var col = bull ? C.bull : C.bear;
+    var chg = ((c.c - c.o)/c.o * 100).toFixed(2);
+    var sign = chg >= 0 ? '+' : '';
+    ohlcEl.innerHTML =
+      '<span style="color:'+C.text+'">O</span> <span style="color:'+col+'">'+fmtP(c.o)+'</span>' +
+      '<span style="color:'+C.text+';margin-left:8px">H</span> <span style="color:'+col+'">'+fmtP(c.h)+'</span>' +
+      '<span style="color:'+C.text+';margin-left:8px">L</span> <span style="color:'+col+'">'+fmtP(c.l)+'</span>' +
+      '<span style="color:'+C.text+';margin-left:8px">C</span> <span style="color:'+col+'">'+fmtP(c.c)+'</span>' +
+      '<span style="color:'+C.text+';margin-left:8px">Vol</span> <span style="color:'+C.text+'">'+fmtVol(c.v)+'</span>' +
+      '<span style="color:'+col+';margin-left:8px;font-weight:600">'+sign+chg+'%</span>';
   }
 
   // ── Helpers ──
-  function fmtPrice(p) {
-    return p >= 1000 ? '$' + p.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '$' + p.toFixed(2);
-  }
+  function fmtP(p) { return p >= 1000 ? p.toLocaleString('en-US',{maximumFractionDigits:0}) : p.toFixed(2); }
   function fmtVol(v) {
-    if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
-    if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-    if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+    if (v>=1e9) return (v/1e9).toFixed(2)+'B';
+    if (v>=1e6) return (v/1e6).toFixed(2)+'M';
+    if (v>=1e3) return (v/1e3).toFixed(1)+'K';
     return v.toFixed(0);
   }
-  function niceStep(range, maxTicks) {
-    const rough = range / maxTicks;
-    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-    const norm = rough / mag;
-    let step;
-    if (norm <= 1.5) step = 1;
-    else if (norm <= 3) step = 2;
-    else if (norm <= 7) step = 5;
-    else step = 10;
-    return step * mag;
+  function niceStep(r,t) {
+    var s=r/t, m=Math.pow(10,Math.floor(Math.log10(s))), n=s/m;
+    return (n<=1.5?1:n<=3?2:n<=7?5:10)*m;
+  }
+  function rrect(ctx,x,y,w,h,r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+    ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h-r);
+    ctx.arcTo(x+w,y+h,x+w-r,y+h,r); ctx.lineTo(x+r,y+h);
+    ctx.arcTo(x,y+h,x,y+h-r,r); ctx.lineTo(x,y+r);
+    ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
   }
 
-  // ── Interaction ──
+  // ── Events ──
   function setupEvents() {
-    canvas.addEventListener('mousemove', e => {
-      const rect = canvas.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
+    canvas.addEventListener('mousemove', function(e) {
+      var r = canvas.getBoundingClientRect();
+      mouseX = e.clientX-r.left; mouseY = e.clientY-r.top;
       showCrosshair = true;
-
       if (isDragging) {
-        const dx = e.clientX - dragStartX;
-        const plotW = W - chartLeft - chartRight - (overlays.volume_profile ? vpWidth : 0);
-        const barW = plotW / visibleBars;
-        const barDelta = Math.round(dx / barW);
-        scrollOffset = Math.max(0, Math.min(candles.length - visibleBars, dragStartOffset + barDelta));
+        var plotW = getPlotW();
+        var bw = plotW/visibleBars;
+        scrollOffset = Math.max(0, Math.min(candles.length-visibleBars, dragStartOffset+Math.round((e.clientX-dragStartX)/bw)));
       }
-
       render();
     });
-
-    canvas.addEventListener('mouseleave', () => {
-      showCrosshair = false;
-      isDragging = false;
+    canvas.addEventListener('mouseleave', function() {
+      showCrosshair = false; isDragging = false;
+      if (candles.length) updateOHLC(candles[candles.length-1]);
       render();
     });
-
-    canvas.addEventListener('mousedown', e => {
-      isDragging = true;
-      dragStartX = e.clientX;
-      dragStartOffset = scrollOffset;
-      canvas.style.cursor = 'grabbing';
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      isDragging = false;
-      canvas.style.cursor = 'crosshair';
-    });
-
-    canvas.addEventListener('wheel', e => {
+    canvas.addEventListener('mousedown', function(e) { isDragging=true; dragStartX=e.clientX; dragStartOffset=scrollOffset; canvas.style.cursor='grabbing'; });
+    canvas.addEventListener('mouseup', function() { isDragging=false; canvas.style.cursor='crosshair'; });
+    canvas.addEventListener('wheel', function(e) {
       e.preventDefault();
-      const zoomSpeed = Math.max(1, Math.round(visibleBars * 0.05));
-      if (e.deltaY > 0) {
-        visibleBars = Math.min(candles.length, visibleBars + zoomSpeed);
-      } else {
-        visibleBars = Math.max(20, visibleBars - zoomSpeed);
-      }
-      scrollOffset = Math.max(0, Math.min(candles.length - visibleBars, scrollOffset));
+      var z = Math.max(1, Math.round(visibleBars*0.06));
+      visibleBars = e.deltaY > 0 ? Math.min(candles.length, visibleBars+z) : Math.max(20, visibleBars-z);
+      scrollOffset = Math.max(0, Math.min(candles.length-visibleBars, scrollOffset));
       render();
-    }, { passive: false });
-
-    window.addEventListener('resize', () => render());
+    }, {passive:false});
+    window.addEventListener('resize', function() { render(); });
   }
 
-  // ── Toggle Panel ──
-  function buildControls(container) {
-    const panel = document.createElement('div');
-    panel.className = 'chart-controls';
-    panel.innerHTML = `
-      <div class="ctrl-group">
-        <div class="ctrl-title">LEVELS</div>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="levels_daily" ${overlays.levels_daily ? 'checked' : ''}><span class="ctrl-dot" style="background:#5b9bd5"></span> Daily Levels</label>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="levels_weekly" ${overlays.levels_weekly ? 'checked' : ''}><span class="ctrl-dot" style="background:#c678dd"></span> Weekly Levels</label>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="levels_monthly" ${overlays.levels_monthly ? 'checked' : ''}><span class="ctrl-dot" style="background:#e5c07b"></span> Monthly Levels</label>
-      </div>
-      <div class="ctrl-group">
-        <div class="ctrl-title">PERIOD ZONES</div>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="zones_daily" ${overlays.zones_daily ? 'checked' : ''}><span class="ctrl-dot" style="background:#5b9bd5"></span> Daily Range</label>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="zones_weekly" ${overlays.zones_weekly ? 'checked' : ''}><span class="ctrl-dot" style="background:#c678dd"></span> Weekly Range</label>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="zones_monthly" ${overlays.zones_monthly ? 'checked' : ''}><span class="ctrl-dot" style="background:#e5c07b"></span> Monthly Range</label>
-      </div>
-      <div class="ctrl-group">
-        <div class="ctrl-title">VOLUME</div>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="volume_profile" ${overlays.volume_profile ? 'checked' : ''}><span class="ctrl-dot" style="background:${GREEN}"></span> Volume Profile</label>
-        <label class="ctrl-toggle"><input type="checkbox" data-key="poc" ${overlays.poc ? 'checked' : ''}><span class="ctrl-dot" style="background:${GOLD}"></span> Point of Control</label>
-      </div>
-    `;
-
-    panel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener('change', () => {
-        overlays[cb.dataset.key] = cb.checked;
-        render();
-      });
-    });
-
-    container.appendChild(panel);
+  function startPulseAnimation() {
+    function tick() {
+      pulsePhase += 0.04;
+      animFrame = requestAnimationFrame(tick);
+    }
+    tick();
   }
 
-  // ── Public Init ──
-  function init(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-
-    // Chart wrapper
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:relative;width:100%;height:500px;';
-
-    canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:absolute;inset:0;cursor:crosshair;';
-    wrap.appendChild(canvas);
-    container.appendChild(wrap);
-
-    ctx = canvas.getContext('2d');
-    dpr = window.devicePixelRatio || 1;
-
-    // Controls panel
-    buildControls(container);
-
-    setupEvents();
-
-    // Loading state
-    ctx.font = '13px Inter, sans-serif';
-    ctx.fillStyle = TEXT;
-    const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = GOLD;
-    ctx.textAlign = 'center';
-    ctx.fillText('Loading BTC data…', rect.width / 2, rect.height / 2);
-
-    // Re-render when container becomes visible or resizes
-    new ResizeObserver(() => render()).observe(wrap);
-
+  // ── Timeframe change ──
+  function setTimeframe(idx) {
+    currentTF = idx;
+    updateTFButtons();
+    if (canvas && W > 10) {
+      ctx.fillStyle = C.bg; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.font = '12px Inter,sans-serif';
+      ctx.fillText('Loading '+TIMEFRAMES[idx].label+' data…', W/2, H/2);
+    }
     loadData();
   }
 
-  return { init, render };
+  function updateTFButtons() {
+    var btns = containerEl ? containerEl.querySelectorAll('.tf-btn') : [];
+    for (var i = 0; i < btns.length; i++) {
+      if (i === currentTF) btns[i].classList.add('active');
+      else btns[i].classList.remove('active');
+    }
+  }
+
+  // ── Build DOM ──
+  function buildToolbar(container) {
+    var toolbar = document.createElement('div');
+    toolbar.className = 'chart-toolbar';
+    var html = '<div class="chart-toolbar-left">';
+    html += '<div class="chart-live-dot"></div>';
+    html += '<span class="chart-symbol">BTCUSDT</span>';
+    html += '<span class="chart-exchange">Binance Perpetual</span>';
+    html += '<span class="chart-tf-sep">·</span>';
+    html += '<div class="chart-tf-group">';
+    TIMEFRAMES.forEach(function(tf,i) {
+      html += '<button class="tf-btn'+(i===currentTF?' active':'')+'" data-idx="'+i+'">'+tf.label+'</button>';
+    });
+    html += '</div>';
+    html += '<span class="chart-tf-sep">·</span>';
+    html += '<span id="legion-ohlc" class="chart-ohlc"></span>';
+    html += '</div>';
+    toolbar.innerHTML = html;
+    toolbar.querySelectorAll('.tf-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { setTimeframe(+btn.dataset.idx); });
+    });
+    container.appendChild(toolbar);
+  }
+
+  function buildControls(container) {
+    var div = document.createElement('div');
+    div.className = 'chart-controls';
+    var groups = [
+      { title:'LEVELS', items:[
+        {key:'levels_daily',  label:'Daily',  color:C.lvlD},
+        {key:'levels_weekly', label:'Weekly', color:C.lvlW},
+        {key:'levels_monthly',label:'Monthly',color:C.lvlM},
+      ]},
+      { title:'ZONES', items:[
+        {key:'zones_daily',  label:'Daily',  color:C.lvlD},
+        {key:'zones_weekly', label:'Weekly', color:C.lvlW},
+        {key:'zones_monthly',label:'Monthly',color:C.lvlM},
+      ]},
+      { title:'VOLUME', items:[
+        {key:'volume_profile',label:'Profile',color:C.bull},
+        {key:'poc',           label:'POC',    color:C.gold},
+        {key:'svp',           label:'SVP',    color:'#ffc107'},
+      ]},
+      { title:'OVERLAYS', items:[
+        {key:'ema21',  label:'EMA 21', color:C.ema21},
+        {key:'ema50',  label:'EMA 50', color:C.ema50},
+        {key:'ema200', label:'EMA 200',color:C.ema200},
+        {key:'vwap',   label:'VWAP',   color:C.vwap},
+      ]},
+    ];
+    var html = '';
+    groups.forEach(function(g) {
+      html += '<div class="ctrl-group"><span class="ctrl-title">'+g.title+'</span>';
+      g.items.forEach(function(it) {
+        html += '<label class="ctrl-toggle">';
+        html += '<input type="checkbox" data-key="'+it.key+'"'+(overlays[it.key]?' checked':'')+'>';
+        html += '<span class="ctrl-dot" style="--dot-color:'+it.color+'"></span>';
+        html += '<span>'+it.label+'</span></label>';
+      });
+      html += '</div>';
+    });
+    div.innerHTML = html;
+    div.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+      cb.addEventListener('change', function() { overlays[cb.dataset.key]=cb.checked; render(); });
+    });
+    container.appendChild(div);
+  }
+
+  // ── Init ──
+  function init(containerId) {
+    containerEl = document.getElementById(containerId);
+    if (!containerEl) return;
+    containerEl.innerHTML = '';
+    buildToolbar(containerEl);
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;width:100%;height:580px;';
+    canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;inset:0;cursor:crosshair;';
+    wrap.appendChild(canvas);
+    containerEl.appendChild(wrap);
+    ctx = canvas.getContext('2d');
+    dpr = window.devicePixelRatio || 1;
+    buildControls(containerEl);
+    setupEvents();
+    startPulseAnimation();
+    new ResizeObserver(function() { render(); }).observe(wrap);
+    var r = wrap.getBoundingClientRect();
+    if (r.width > 10) {
+      canvas.width = r.width*dpr; canvas.height = r.height*dpr;
+      canvas.style.width = r.width+'px'; canvas.style.height = r.height+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.fillStyle = C.bg; ctx.fillRect(0,0,r.width,r.height);
+      ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.font = '12px Inter,sans-serif';
+      ctx.fillText('Loading BTC data…', r.width/2, r.height/2);
+    }
+    loadData();
+    setInterval(function() {
+      if (Date.now() - lastRefresh > 55000) loadData();
+    }, 60000);
+  }
+
+  return { init: init, render: render };
 })();

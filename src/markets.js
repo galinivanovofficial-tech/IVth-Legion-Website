@@ -14,8 +14,11 @@ async function cached(key, ttlSec, fn) {
   return data;
 }
 
+// Yahoo Finance rate-limits (429) full browser user-agents from servers but accepts a minimal one.
+const uaFor = url => (/finance\.yahoo\.com/.test(url) ? 'Mozilla/5.0' : UA);
+
 async function fetchJSON(url, headers = {}) {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json, text/plain, */*', ...headers } });
+  const res = await fetch(url, { headers: { 'User-Agent': uaFor(url), Accept: 'application/json, text/plain, */*', ...headers } });
   if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
   return res.json();
 }
@@ -143,27 +146,58 @@ function buildKeyDates() {
 }
 
 // ---------- Market News (Google News RSS — free, no key, aggregates Reuters/Bloomberg/Forbes/WSJ etc.) ----------
+// Outlet feeds publish within minutes; Google News adds breadth. Merged, de-duplicated and
+// sorted newest-first so stories arrive one by one in time order.
+const NEWS_FEEDS = [
+  ['https://news.google.com/rss/search?q=bitcoin+crypto+market+when:1d&hl=en-US&gl=US&ceid=US:en', null],
+  ['https://www.coindesk.com/arc/outboundfeeds/rss/', 'CoinDesk'],
+  ['https://cointelegraph.com/rss', 'Cointelegraph'],
+  ['https://decrypt.co/feed', 'Decrypt'],
+  ['https://www.theblock.co/rss.xml', 'The Block'],
+  ['https://bitcoinmagazine.com/.rss/full/', 'Bitcoin Magazine'],
+  ['https://news.bitcoin.com/feed/', 'Bitcoin.com'],
+];
+const decodeXml = s => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ')
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+  .replace(/\s+/g, ' ').trim();
+
+async function fetchFeed([url, sourceName]) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(url + ' -> HTTP ' + res.status);
+  const xml = await res.text();
+  const items = [];
+  for (const [, block] of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const g = tag => { const m = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`)); return m ? m[1].trim() : ''; };
+    let title = decodeXml(g('title'));
+    const source = sourceName || decodeXml(g('source')) || 'News';
+    // Google News appends " - Source" to titles.
+    if (!sourceName && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3));
+    const ts = Date.parse(g('pubDate')) || 0;
+    const link = decodeXml(g('link'));
+    if (!title || !ts || !/^https?:\/\//.test(link)) continue;
+    const desc = decodeXml(g('description'));
+    items.push({ id: link, title, source, url: link, ts, body: desc.length > 180 ? desc.slice(0, 177).replace(/\s+\S*$/, '') + '…' : desc });
+  }
+  return items;
+}
+
 async function getNews() {
-  return cached('news:gn', 300, async () => {
-    const res = await fetch('https://news.google.com/rss/search?q=bitcoin+crypto+market+when:1d&hl=en-US&gl=US&ceid=US:en', {
-      headers: { 'User-Agent': UA, Accept: 'application/xml, text/xml, */*' }
-    });
-    if (!res.ok) throw new Error('Google News RSS ' + res.status);
-    const xml = await res.text();
-    const items = [];
-    const re = /<item>([\s\S]*?)<\/item>/g;
-    let m;
-    while ((m = re.exec(xml)) !== null && items.length < 30) {
-      const block = m[1];
-      const g = (tag) => { const r2 = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`); const m2 = block.match(r2); return m2 ? (m2[1] || m2[2] || '').trim() : ''; };
-      const title = g('title').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
-      const source = g('source').replace(/&amp;/g,'&');
-      const pubDate = g('pubDate');
-      const link = g('link');
-      const ts = pubDate ? new Date(pubDate).getTime() : Date.now();
-      if (title) items.push({ id: String(ts) + title.slice(0,20), title, source, url: link, ts, body: '' });
-    }
-    return items;
+  return cached('news:all', 60, async () => {
+    const results = await Promise.allSettled(NEWS_FEEDS.map(fetchFeed));
+    results.forEach((r, i) => { if (r.status === 'rejected') console.warn('[markets] news feed failed:', NEWS_FEEDS[i][0], r.reason.message); });
+    const seen = new Set();
+    const items = results.flatMap(r => (r.status === 'fulfilled' ? r.value : []))
+      .filter(a => a.ts <= Date.now() + 5 * 60e3)
+      .sort((a, b) => b.ts - a.ts)
+      .filter(a => {
+        const key = a.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().slice(0, 80);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    if (!items.length) throw new Error('No news feeds available');
+    return items.slice(0, 60);
   });
 }
 
