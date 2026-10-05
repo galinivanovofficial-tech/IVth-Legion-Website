@@ -188,7 +188,36 @@ export function startOrderflow() {
   }
 }
 
+// OKX taker buy/sell volume (USD) for the multi-venue CVD. OKX doesn't send CORS headers on this
+// endpoint, so the browser reads it through here. Cached briefly; rows are [ts, sellUsd, buyUsd].
+const OKX_PERIODS = { '5m': 4, '15m': 4, '1H': 1 }; // pages of 100 the feed will serve per period
+const okxCache = new Map();
+async function okxTaker(period, recent) {
+  const key = period + (recent ? ':r' : '');
+  const hit = okxCache.get(key);
+  if (hit && hit.exp > Date.now()) return hit.rows;
+  const rows = [];
+  let end = '';
+  for (let p = 0; p < (recent ? 1 : OKX_PERIODS[period]); p++) {
+    const r = await fetch(`https://www.okx.com/api/v5/rubik/stat/taker-volume-contract?instId=BTC-USDT-SWAP&period=${period}&unit=2&limit=${recent ? 3 : 100}${end ? '&end=' + end : ''}`, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error('OKX HTTP ' + r.status);
+    const d = (await r.json()).data || [];
+    if (!d.length) break;
+    rows.push(...d.map(x => [+x[0], +x[1], +x[2]]));
+    end = d[d.length - 1][0];
+  }
+  okxCache.set(key, { exp: Date.now() + (recent ? 15000 : 60000), rows });
+  return rows;
+}
+
 export function registerOrderflowRoutes(router) {
+  router.get('/api/orderflow/okx-taker', async (req, res) => {
+    const u = new URL(req.url, 'http://x');
+    const period = u.searchParams.get('period');
+    if (!OKX_PERIODS[period]) return res.json(400, { error: 'period must be 5m, 15m or 1H' });
+    try { res.json(200, { rows: await okxTaker(period, u.searchParams.get('recent') === '1') }); }
+    catch (e) { res.json(502, { error: 'OKX unavailable: ' + e.message }); }
+  });
   router.get('/api/orderflow/footprint', (req, res) => {
     const since = Number(new URL(req.url, 'http://x').searchParams.get('since')) || 0;
     const out = [];

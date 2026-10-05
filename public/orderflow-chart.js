@@ -8,10 +8,10 @@ window.LegionOrderflow = (function () {
   const WS_URL = 'wss://fstream.binance.com/market/stream?streams=' +
     ['btcusdt@aggTrade', 'btcusdt@kline_1m', 'btcusdt@kline_5m', 'btcusdt@kline_15m', 'btcusdt@kline_1h', 'btcusdt@kline_4h', 'btcusdt@kline_1d'].join('/');
   const TFS = [
-    { label: '1m',  api: '1m',  ms: 60e3,   limit: 300, oi: '5m',  bars: 40 },
-    { label: '5m',  api: '5m',  ms: 300e3,  limit: 288, oi: '5m',  bars: 36 },
-    { label: '15m', api: '15m', ms: 900e3,  limit: 300, oi: '15m', bars: 36 },
-    { label: '1H',  api: '1h',  ms: 3600e3, limit: 300, oi: '1h',  bars: 36 },
+    { label: '1m',  api: '1m',  ms: 60e3,   limit: 1000, oi: '5m',  bars: 40 },
+    { label: '5m',  api: '5m',  ms: 300e3,  limit: 1000, oi: '5m',  bars: 36 },
+    { label: '15m', api: '15m', ms: 900e3,  limit: 1000, oi: '15m', bars: 36 },
+    { label: '1H',  api: '1h',  ms: 3600e3, limit: 1000, oi: '1h',  bars: 36 },
   ];
   // Potential divergences are also tracked on 4H and 1D, which aren't chart timeframes.
   const PDIV_TFS = [...TFS, { label: '4H', api: '4h', ms: 4 * 3600e3 }, { label: '1D', api: '1d', ms: 864e5 }];
@@ -27,8 +27,26 @@ window.LegionOrderflow = (function () {
     abs: '#f5b041', warn: '#f5a623', liq: '#b07cff',
   };
   const SIDE_COLOR = { bull: C.bull, bear: C.bear, warn: C.warn, liq: C.liq };
+  // Multi-venue CVD: taker buys − taker sells (USD) per candle on each venue. Binance perp comes from the main
+  // klines; the others are loaded alongside. Bybit / Coinbase don't publish a buy/sell split, so they can't be used.
+  const VENUES = [
+    { id: 'bnp', label: 'Binance USDT perp', short: 'BN PERP', color: '#4f8df7' },
+    { id: 'bnc', label: 'Binance COIN-M perp', short: 'BN COIN', color: '#f5a623' },
+    { id: 'bns', label: 'Binance spot', short: 'BN SPOT', color: '#d8dbe6' },
+    { id: 'okx', label: 'OKX USDT perp', short: 'OKX', color: '#2ec4b6' },
+  ];
+  const VIDS = VENUES.map(v => v.id);
+  const AGG = { id: 'agg', label: 'Aggregate (all venues)', short: 'AGG', color: '#e879f9' };
+  const OKX_PERIOD = { '5m': '5m', '15m': '15m', '1h': '1H' }; // OKX publishes taker volume from 5m up
+  const venueData = { bnc: new Map(), bns: new Map(), okx: new Map() };
+  const venueState = { bnp: 'ok', bnc: 'loading', bns: 'loading', okx: 'loading' };
+  let covStart = {};                 // first candle index with data, per venue
+  // Scorecard rule: a divergence wins if price moves 1.5 ATR its way (from the close of the candle that confirms
+  // the swing) before trading beyond the swing extreme, within 50 candles. Anything else is a loss.
+  const SCORE = { target: 1.5, horizon: 50 };
+  let score = null;
 
-  let root, canvas, ctx, feedEl, statusEl, clockEl, dotEl;
+  let root, canvas, ctx, feedEl, scoreEl, statusEl, clockEl, dotEl;
   let dpr = 1, W = 0, H = 0;
   let tfIdx = 1;
   let bars = [];
@@ -43,8 +61,8 @@ window.LegionOrderflow = (function () {
   let ws = null, wsRetry = 0;
   let loadSeq = 0;
   let lastPrice = 0, liveOiUsd = null;
-  const toggles = { fp: true, oi: true, cvd: false, poc: true, va: true, imb: true, sig: true, pdiv: true, fpbs: true };
-  const opt = { tick: 0, cluster: 'delta', text: 'volume', candle: 'ohlc' };
+  const toggles = { fp: true, oi: true, cvd: true, score: true, poc: true, va: true, imb: true, sig: true, pdiv: true, fpbs: true };
+  const opt = { tick: 0, cluster: 'delta', text: 'volume', candle: 'ohlc', agree: 1 };
   const defaultBars = () => 30;
   const view = { bars: 36, offset: 0 };
   let mouse = null, drag = null, axisDrag = null, flash = null;
@@ -67,7 +85,8 @@ window.LegionOrderflow = (function () {
   async function load() {
     const seq = ++loadSeq;
     const tf = TFS[tfIdx];
-    bars = []; signals = []; renderFeed(); requestRender();
+    bars = []; signals = []; score = null; renderFeed(); renderScore(); requestRender();
+    for (const id of Object.keys(venueData)) { venueData[id].clear(); venueState[id] = 'loading'; }
     try {
       const [kl, oi] = await Promise.all([
         getJSON(`${FAPI}/fapi/v1/klines?symbol=BTCUSDT&interval=${tf.api}&limit=${tf.limit}`),
@@ -81,6 +100,7 @@ window.LegionOrderflow = (function () {
       lastPrice = bars.length ? bars[bars.length - 1].c : 0;
       view.bars = defaultBars(); view.offset = 0; yScale = null;
       computeSignals();
+      loadVenues(seq, false);
       pollOI();
       requestRender();
     } catch (e) {
@@ -151,13 +171,57 @@ window.LegionOrderflow = (function () {
     if (last && liveOiUsd != null) last.oiC = liveOiUsd;
   }
 
+  const venueDelta = (id, b) => (id === 'bnp' ? b.delta : venueData[id].get(b.t));
   function recomputeCVD(from) {
+    if (from === 0) covStart = {};
     let cum = from > 0 ? bars[from - 1].cvdC : 0;
+    const vc = from > 0 && bars[from - 1].vc ? { ...bars[from - 1].vc } : { bnp: 0, bnc: 0, bns: 0, okx: 0, agg: 0 };
     for (let i = from; i < bars.length; i++) {
-      bars[i].cvdO = cum;
-      cum += bars[i].delta;
-      bars[i].cvdC = cum;
+      const b = bars[i];
+      b.cvdO = cum;
+      cum += b.delta;
+      b.cvdC = cum;
+      for (const id of VIDS) {
+        const d = venueDelta(id, b);
+        if (d == null) continue;
+        if (covStart[id] == null) covStart[id] = i;
+        vc[id] += d; vc.agg += d;
+      }
+      b.vc = { ...vc };
     }
+  }
+
+  async function fetchVenue(id, tf, recent) {
+    const lim = recent ? 3 : tf.limit;
+    if (id === 'bnc') { // COIN-M contracts are $100 each
+      const kl = await getJSON(`https://dapi.binance.com/dapi/v1/klines?symbol=BTCUSD_PERP&interval=${tf.api}&limit=${lim}`);
+      return kl.map(k => [+k[0], (2 * +k[9] - +k[5]) * 100]);
+    }
+    if (id === 'bns') { // public market-data mirror: works where api.binance.com is geo-blocked
+      const kl = await getJSON(`https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=${tf.api}&limit=${Math.min(lim, 1000)}`);
+      return kl.map(k => [+k[0], 2 * +k[10] - +k[7]]);
+    }
+    const period = OKX_PERIOD[tf.api];
+    if (!period) return null;
+    const d = await getJSON(`/api/orderflow/okx-taker?period=${period}${recent ? '&recent=1' : ''}`);
+    return d.rows.map(r => [r[0], r[2] - r[1]]);
+  }
+  async function loadVenues(seq, recent) {
+    const tf = TFS[tfIdx], ids = Object.keys(venueData);
+    const res = await Promise.allSettled(ids.map(id => fetchVenue(id, tf, recent)));
+    if (seq !== loadSeq || !bars.length) return;
+    let changed = false;
+    res.forEach((r, j) => {
+      const id = ids[j];
+      if (r.status !== 'fulfilled' || !r.value) { if (!recent) venueState[id] = r.status === 'fulfilled' ? 'n/a' : 'unavailable'; return; }
+      for (const [t, d] of r.value) venueData[id].set(t, d);
+      venueState[id] = 'ok';
+      changed = true;
+    });
+    if (!changed && recent) return;
+    recomputeCVD(recent ? Math.max(0, bars.length - 6) : 0);
+    computeSignals();
+    requestRender();
   }
 
   function addTrade(tr) {
@@ -474,18 +538,86 @@ window.LegionOrderflow = (function () {
       if (isH) hiP.push(i);
       if (isL) loP.push(i);
     }
-    for (let p = 1; p < hiP.length; p++) {
-      const a = hiP[p - 1], b = hiP[p];
-      if (b - a <= 40 && bars[b].h > bars[a].h && bars[b].cvdC < bars[a].cvdC)
-        add(b, 'div', 'bear', 'DIV', 'Bearish CVD divergence', 'Higher high in price, lower high in CVD — buyers are exhausting; the push is not backed by aggressive flow.', a);
-    }
-    for (let p = 1; p < loP.length; p++) {
-      const a = loP[p - 1], b = loP[p];
-      if (b - a <= 40 && bars[b].l < bars[a].l && bars[b].cvdC > bars[a].cvdC)
-        add(b, 'div', 'bull', 'DIV', 'Bullish CVD divergence', 'Lower low in price, higher low in CVD — sellers are exhausting; the flush is not backed by aggressive flow.', a);
+    // A divergence counts on every venue whose CVD disagrees with price between the two swings.
+    const agreement = (a, b, side) => {
+      const list = [];
+      let n = 0;
+      for (const id of VIDS) {
+        if (covStart[id] == null || covStart[id] > a || !bars[b].vc) continue;
+        n++;
+        const va = bars[a].vc[id], vb = bars[b].vc[id];
+        if (side === 'bear' ? vb < va : vb > va) list.push(id);
+      }
+      return { list, n };
+    };
+    const venueNames = ids => ids.map(id => VENUES.find(v => v.id === id).short).join(', ');
+    for (const [piv, side] of [[hiP, 'bear'], [loP, 'bull']]) {
+      for (let p = 1; p < piv.length; p++) {
+        const a = piv[p - 1], b = piv[p];
+        if (b - a > 40 || !(side === 'bear' ? bars[b].h > bars[a].h : bars[b].l < bars[a].l)) continue;
+        const ag = agreement(a, b, side);
+        if (!ag.list.length) continue;
+        const bear = side === 'bear';
+        add(b, 'div', side, 'DIV', `${bear ? 'Bearish' : 'Bullish'} CVD divergence · ${ag.list.length}/${ag.n} venues`,
+          (bear ? 'Higher high in price, lower high in CVD — buyers are exhausting; the push is not backed by aggressive flow.'
+                : 'Lower low in price, higher low in CVD — sellers are exhausting; the flush is not backed by aggressive flow.') +
+          ` Confirmed on ${venueNames(ag.list)}.`, a);
+        Object.assign(signals[signals.length - 1], { agree: ag.list.length, nVen: ag.n, venues: ag.list });
+      }
     }
     signals.sort((x, y) => x.i - y.i);
+    scoreDivs(atr, n, k);
     renderFeed();
+    renderScore();
+  }
+
+  function simulate(e, side, stop, target, n) {
+    for (let j = e + 1; j < n && j <= e + SCORE.horizon; j++) {
+      if (side === 'bear' ? bars[j].h > stop : bars[j].l < stop) return { res: 'loss', exitI: j }; // same-candle tie = loss
+      if (side === 'bear' ? bars[j].l <= target : bars[j].h >= target) return { res: 'win', exitI: j };
+    }
+    return n - 1 - e >= SCORE.horizon ? { res: 'loss', exitI: e + SCORE.horizon, timeout: true } : { res: 'open' };
+  }
+
+  // Outcome of every confirmed divergence, plus a baseline: the same target/stop from every candle in the
+  // sample, so the hit rate can be compared with what random entries would have scored.
+  function scoreDivs(atr, n, k) {
+    const divs = signals.filter(s => s.kind === 'div');
+    for (const s of divs) {
+      const e = s.i + k; // the swing is only known 3 candles later: enter on that close
+      s.res = 'open'; s.entryI = e;
+      if (e >= n) continue;
+      const bear = s.side === 'bear', entry = bars[e].c, a = atr[e];
+      s.stop = bear ? bars[s.i].h : bars[s.i].l;
+      s.target = bear ? entry - SCORE.target * a : entry + SCORE.target * a;
+      s.risk = Math.abs(s.stop - entry) / a;
+      if (bear ? entry >= s.stop : entry <= s.stop) { s.res = 'loss'; s.exitI = e; continue; }
+      Object.assign(s, simulate(e, s.side, s.stop, s.target, n));
+    }
+    const base = side => {
+      const risks = divs.filter(s => s.side === side && s.risk > 0).map(s => s.risk).sort((x, y) => x - y);
+      const r = Math.min(5, Math.max(0.3, risks.length ? risks[risks.length >> 1] : 1));
+      let w = 0, l = 0;
+      for (let e = 20; e < n - 1; e++) {
+        const entry = bars[e].c, a = atr[e];
+        const o = simulate(e, side, side === 'bear' ? entry + r * a : entry - r * a, side === 'bear' ? entry - SCORE.target * a : entry + SCORE.target * a, n);
+        if (o.res === 'win') w++; else if (o.res === 'loss') l++;
+      }
+      return w + l ? w / (w + l) : null;
+    };
+    const tally = list => {
+      const w = list.filter(s => s.res === 'win').length, l = list.filter(s => s.res === 'loss').length;
+      return { w, l, open: list.filter(s => s.res === 'open').length, rate: w + l ? w / (w + l) : null };
+    };
+    const sides = {};
+    for (const side of ['bear', 'bull']) sides[side] = { ...tally(divs.filter(s => s.side === side)), base: base(side) };
+    const all = tally(divs);
+    const resolved = (sides.bear.w + sides.bear.l) + (sides.bull.w + sides.bull.l);
+    const baseAll = resolved ? ((sides.bear.base ?? 0) * (sides.bear.w + sides.bear.l) + (sides.bull.base ?? 0) * (sides.bull.w + sides.bull.l)) / resolved : null;
+    const byAgree = [1, 2, 3, 4].map(m => ({ m, ...tally(divs.filter(s => s.agree === m)) })).filter(r => r.w + r.l + r.open);
+    const atLeast2 = tally(divs.filter(s => s.agree >= 2));
+    score = { tf: TFS[tfIdx].label, n: divs.length, ...all, base: baseAll, sides, byAgree, atLeast2, from: bars[0].t, to: bars[n - 1].t, candles: n,
+      recent: divs.slice(-8).reverse() };
   }
 
   function renderFeed() {
@@ -494,11 +626,36 @@ window.LegionOrderflow = (function () {
     feedEl.innerHTML = items.length
       ? items.map(s =>
           `<button class="of-sig of-sig-${s.side}" data-t="${s.t}">` +
-          `<span class="of-sig-tag">${s.tag}</span>` +
+          `<span class="of-sig-tag">${s.kind === 'div' ? (s.res === 'win' ? '✓ ' : s.res === 'loss' ? '✗ ' : '? ') : ''}${s.tag}</span>` +
           `<span class="of-sig-body"><span class="of-sig-title">${s.title}<em>${fmtDateTime(s.t)}</em></span>` +
           `<span class="of-sig-text">${s.text}</span></span></button>`).join('')
       : `<div class="of-feed-empty">${bars.length ? 'No signals in the loaded range yet.' : 'Loading…'}</div>`;
     feedEl.querySelectorAll('.of-sig').forEach(el => { el.onclick = () => focusTime(+el.dataset.t); });
+  }
+
+  function renderScore() {
+    const el = scoreEl;
+    if (!el) return;
+    if (!score || !score.n) { el.innerHTML = `<div class="of-feed-empty">${bars.length ? 'No confirmed CVD divergences in the loaded candles yet.' : 'Loading…'}</div>`; return; }
+    const pct = v => (v == null ? '—' : Math.round(v * 100) + '%');
+    const edge = (r, b) => (r == null || b == null ? '' : `<span class="${r >= b ? 'up' : 'down'}">${r >= b ? '+' : ''}${Math.round((r - b) * 100)} pts</span>`);
+    const row = (label, t, base) => `<tr><td>${label}</td><td>${t.w + t.l + t.open}</td><td class="up">${t.w}</td><td class="down">${t.l}</td><td>${t.open}</td><td><b>${pct(t.rate)}</b></td><td>${base == null ? '—' : pct(base)}</td><td>${t.w + t.l < 10 ? `<span class="thin" title="Fewer than 10 resolved signals: not meaningful yet">too few (${t.w + t.l})</span>` : edge(t.rate, base)}</td></tr>`;
+    const span = fmtDur(score.to - score.from);
+    el.innerHTML = `
+      <div class="of-score-top">
+        <div class="of-score-big"><b class="${score.rate != null && score.base != null && score.rate > score.base ? 'up' : ''}">${pct(score.rate)}</b><span>hit rate · ${score.w + score.l} resolved</span></div>
+        <div class="of-score-big"><b>${pct(score.base)}</b><span>random-entry baseline</span></div>
+        <div class="of-score-big"><b>${edge(score.rate, score.base) || '—'}</b><span>edge vs baseline</span></div>
+        <div class="of-score-big"><b>${score.atLeast2.w + score.atLeast2.l ? pct(score.atLeast2.rate) : '—'}</b><span>when 2+ venues agree (${score.atLeast2.w + score.atLeast2.l})</span></div>
+      </div>
+      <table class="of-score-table"><thead><tr><th>${score.tf} divergences</th><th>Signals</th><th>✓</th><th>✗</th><th>Open</th><th>Hit rate</th><th>Baseline</th><th>Edge</th></tr></thead><tbody>
+        ${row('All', score, score.base)}
+        ${row('Bearish ▼', score.sides.bear, score.sides.bear.base)}
+        ${row('Bullish ▲', score.sides.bull, score.sides.bull.base)}
+        ${score.byAgree.map(r => row(`${r.m} venue${r.m > 1 ? 's' : ''} agree`, r, score.base)).join('')}
+      </tbody></table>
+      <p class="of-score-note">Sample: ${score.candles} closed ${score.tf} candles (${span}). <b>Win</b> = price moves 1.5 ATR in the divergence's direction, measured from the close of the candle that confirms the swing (3 candles after it), before trading beyond the swing high/low, within ${SCORE.horizon} candles. Otherwise it's a loss, including timeouts. <b>Baseline</b> = the same target and typical stop distance applied from every candle, i.e. what entering anywhere would have scored. Small samples swing a lot, so compare timeframes and treat fewer than ~30 resolved signals as anecdotal.
+      Venues: ${VENUES.map(v => `<span style="color:${v.color}">${v.short}</span> ${venueState[v.id] === 'ok' ? '✓' : venueState[v.id] === 'n/a' ? '(not on 1m)' : venueState[v.id]}`).join(' · ')}.</p>`;
   }
 
   function focusTime(t) {
@@ -518,7 +675,7 @@ window.LegionOrderflow = (function () {
     g.tableHead = 20;
     g.tableH = toggles.fpbs ? 64 + g.tableHead : 0;
     g.oiH = toggles.oi ? Math.round(H * 0.17) : 0;
-    g.cvdH = toggles.cvd ? Math.round(H * 0.13) : 0;
+    g.cvdH = toggles.cvd ? Math.round(H * 0.17) : 0;
     g.mainH = H - g.timeH - g.tableH - g.oiH - g.cvdH;
     g.oiTop = g.mainH; g.cvdTop = g.oiTop + g.oiH; g.tableTop = g.cvdTop + g.cvdH; g.timeTop = g.tableTop + g.tableH;
   }
@@ -618,6 +775,7 @@ window.LegionOrderflow = (function () {
     for (let i = g.startIdx; i <= g.endIdx; i++) drawBar(i);
     if (toggles.sig) drawMainSignals();
     if (toggles.pdiv) drawPotentialDivs();
+    if (toggles.score) drawScoreBadge();
     drawPriceLine();
     ctx.restore();
     if (toggles.oi) drawOIPane();
@@ -851,14 +1009,32 @@ window.LegionOrderflow = (function () {
       const b = bars[s.i], x = X(s.i), color = SIDE_COLOR[s.side];
       const top = s.side === 'bear';
       if (s.kind === 'div') {
+        if ((s.agree || 1) < opt.agree) continue;
         const a = bars[s.from];
         const ya = top ? PY(a.h) - 10 : PY(a.l) + 10, yb = top ? PY(b.h) - 10 : PY(b.l) + 10;
+        ctx.save();
+        ctx.globalAlpha = s.res === 'loss' ? 0.55 : 1;
         ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+        if (s.agree < 2) ctx.setLineDash([5, 4]);
         ctx.beginPath(); ctx.moveTo(X(s.from), ya); ctx.lineTo(x, yb); ctx.stroke();
+        ctx.setLineDash([]);
         for (const [px, py] of [[X(s.from), ya], [x, yb]]) {
           ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
         }
-        pill(top ? 'CVD DIV ▼' : 'CVD DIV ▲', x, Math.max(52, Math.min(geo.mainH - 10, top ? yb - 12 : yb + 12)), color);
+        const mark = s.res === 'win' ? '✓' : s.res === 'loss' ? '✗' : '?';
+        pill(`${mark} DIV ${top ? '▼' : '▲'} ${s.agree}/${s.nVen}`, x, Math.max(52, Math.min(geo.mainH - 10, top ? yb - 12 : yb + 12)), color);
+        ctx.restore();
+        // target / stop of a trade still in play
+        if (s.res === 'open' && s.target != null && s.entryI < bars.length) {
+          ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+          const xe = X(s.entryI), xr = Math.min(geo.plotW, X(Math.min(bars.length - 1, s.entryI + SCORE.horizon)));
+          ctx.strokeStyle = C.bull; ctx.beginPath(); ctx.moveTo(xe, PY(s.target)); ctx.lineTo(xr, PY(s.target)); ctx.stroke();
+          ctx.strokeStyle = C.bear; ctx.beginPath(); ctx.moveTo(xe, PY(s.stop)); ctx.lineTo(xr, PY(s.stop)); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.font = '600 9px Inter, sans-serif'; ctx.textAlign = 'left';
+          ctx.fillStyle = C.bull; ctx.fillText('target 1.5 ATR', xe + 4, PY(s.target) + (top ? 11 : -4));
+          ctx.fillStyle = C.bear; ctx.fillText('invalidation', xe + 4, PY(s.stop) + (top ? -4 : 11));
+        }
         continue;
       }
       if (s.i < g.startIdx || s.kind === 'oi') continue;
@@ -997,42 +1173,75 @@ window.LegionOrderflow = (function () {
     }
   }
 
+  // Every venue's CVD on its own scale (sizes differ a lot), so the shapes can be compared directly.
   function drawCVDPane() {
-    const g = geo, top = g.cvdTop, h = g.cvdH;
-    const vals = [];
-    for (let i = g.startIdx; i <= g.endIdx; i++) vals.push(bars[i].cvdC);
-    const s = subPaneScale(top, h, vals);
-    const last = bars[g.endIdx];
-    paneHeader(top, 'CVD', fmtSignedUsd(last.cvdC), last.cvdC >= last.cvdO ? C.bull : C.bear);
-    if (!s) return;
-    g.cvdScale = s;
-    ctx.beginPath();
-    for (let i = g.startIdx; i <= g.endIdx; i++) {
-      const x = X(i), y = s.y(bars[i].cvdC);
-      if (i === g.startIdx) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    const g = geo, top = g.cvdTop, h = g.cvdH, y0 = top + 20, ph = h - 26;
+    const ids = [...VIDS.filter(id => covStart[id] != null), 'agg'];
+    const meta = id => (id === 'agg' ? AGG : VENUES.find(v => v.id === id));
+    const lines = {};
+    for (const id of ids) {
+      const from = Math.max(g.startIdx, id === 'agg' ? 0 : covStart[id]);
+      if (from > g.endIdx) continue;
+      let lo = Infinity, hi = -Infinity;
+      for (let i = from; i <= g.endIdx; i++) { const v = bars[i].vc[id]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      const pad = (hi - lo) * 0.08 || 1;
+      lines[id] = { from, y: v => y0 + ph * (1 - (v - lo + pad) / (hi - lo + 2 * pad)), chg: bars[g.endIdx].vc[id] - (from > 0 ? bars[from - 1].vc[id] : 0) };
     }
-    ctx.strokeStyle = '#4f8df7'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.lineTo(X(g.endIdx), top + h); ctx.lineTo(X(g.startIdx), top + h); ctx.closePath();
-    const grad = ctx.createLinearGradient(0, top, 0, top + h);
-    grad.addColorStop(0, 'rgba(79,141,247,0.22)'); grad.addColorStop(1, 'rgba(79,141,247,0)');
-    ctx.fillStyle = grad; ctx.fill();
-    if (s.lo < 0 && s.hi > 0) {
-      ctx.strokeStyle = 'rgba(125,132,151,0.35)'; ctx.setLineDash([2, 3]);
-      const y = Math.round(s.y(0)) + 0.5;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(g.plotW, y); ctx.stroke(); ctx.setLineDash([]);
+    g.cvdScale = null;
+    g.cvdLines = Object.keys(lines);
+    // header: change of each venue's CVD across the visible candles
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, top + 0.5); ctx.lineTo(W, top + 0.5); ctx.stroke();
+    ctx.font = '600 10px Inter, sans-serif'; ctx.textAlign = 'left';
+    let x = 10;
+    ctx.fillStyle = C.text; ctx.fillText('CVD · Δ IN VIEW', x, top + 14); x += ctx.measureText('CVD · Δ IN VIEW').width + 12;
+    for (const id of ids) {
+      const L = lines[id], m = meta(id);
+      if (!L) continue;
+      const t = `${m.short} ${fmtSignedUsd(L.chg)}`;
+      ctx.fillStyle = m.color; ctx.fillText(t, x, top + 14); x += ctx.measureText(t).width + 12;
     }
-    if (toggles.sig) {
+    const missing = VIDS.filter(id => covStart[id] == null).map(id => meta(id).short + (venueState[id] === 'n/a' ? ' (5m+)' : venueState[id] === 'loading' ? ' …' : ' ✕'));
+    if (missing.length) { ctx.fillStyle = C.text; ctx.fillText(missing.join('  '), x, top + 14); }
+    for (const id of ids) {
+      const L = lines[id];
+      if (!L) continue;
+      ctx.beginPath();
+      for (let i = L.from; i <= g.endIdx; i++) { const px = X(i), py = L.y(bars[i].vc[id]); if (i === L.from) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+      ctx.strokeStyle = meta(id).color; ctx.lineWidth = id === 'agg' ? 2.2 : 1.2; ctx.globalAlpha = id === 'agg' ? 1 : 0.8; ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    if (toggles.sig && lines.agg) {
       for (const sg of signals) {
-        if (sg.kind !== 'div' || sg.i < g.startIdx || sg.from > g.endIdx) continue;
+        if (sg.kind !== 'div' || (sg.agree || 1) < opt.agree || sg.i < g.startIdx || sg.from > g.endIdx) continue;
         const color = SIDE_COLOR[sg.side];
-        const ya = s.y(bars[sg.from].cvdC), yb = s.y(bars[sg.i].cvdC);
+        const ya = lines.agg.y(bars[sg.from].vc.agg), yb = lines.agg.y(bars[sg.i].vc.agg);
         ctx.strokeStyle = color; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(X(sg.from), ya); ctx.lineTo(X(sg.i), yb); ctx.stroke();
-        for (const [px, py] of [[X(sg.from), ya], [X(sg.i), yb]]) {
-          ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
-        }
+        for (const [px, py] of [[X(sg.from), ya], [X(sg.i), yb]]) { ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); }
       }
     }
+  }
+
+  // Compact scorecard on the chart (bottom-left, above the potential-divergence strip).
+  function drawScoreBadge() {
+    if (!score || !score.n) return;
+    const rate = score.rate == null ? '—' : Math.round(score.rate * 100) + '%';
+    const edge = score.rate != null && score.base != null ? Math.round((score.rate - score.base) * 100) : null;
+    const parts = [
+      ['DIV SCORE ' + score.tf, C.text], [rate, score.rate != null && score.base != null && score.rate > score.base ? C.bull : C.textHi],
+      [score.w + ' ✓', C.bull], [score.l + ' ✗', C.bear], [score.open + ' ?', C.textHi],
+      ['base ' + (score.base == null ? '—' : Math.round(score.base * 100) + '%'), C.text],
+      [edge == null ? '' : 'edge ' + (edge >= 0 ? '+' : '') + edge + ' pts', edge == null ? C.text : edge >= 0 ? C.bull : C.bear],
+    ].filter(p => p[0]);
+    ctx.font = '700 10px Inter, sans-serif';
+    let w = 16;
+    for (const [t] of parts) w += ctx.measureText(t).width + 10;
+    const y = geo.mainH - (toggles.pdiv ? 54 : 28);
+    ctx.fillStyle = 'rgba(16,20,31,0.88)'; roundRect(8, y, w, 20, 4); ctx.fill();
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.stroke();
+    let x = 16;
+    ctx.textAlign = 'left';
+    for (const [t, c] of parts) { ctx.fillStyle = c; ctx.fillText(t, x, y + 14); x += ctx.measureText(t).width + 10; }
   }
 
   function drawTable() {
@@ -1169,7 +1378,7 @@ window.LegionOrderflow = (function () {
       ['Δ', fmtSignedUsd(b.delta), b.delta >= 0 ? C.bull : C.bear],
       ['OI', oiChg == null ? '—' : fmtSignedUsd(oiChg), oiChg == null ? C.text : oiChg >= 0 ? C.bull : C.bear],
     ];
-    if (toggles.cvd) segs.push(['CVD', fmtSignedUsd(b.cvdC), C.textHi]);
+    if (toggles.cvd && b.vc) segs.push(['CVD agg', fmtSignedUsd(b.vc.agg), C.textHi]);
     if (toggles.fp && footprint(i, geo.bin)) segs.push(['Row', '$' + geo.bin, C.text]);
     if (geo.textHidden) segs.push(['', 'zoom in for numbers', C.text]);
     ctx.font = '11px Inter, sans-serif'; ctx.textAlign = 'left';
@@ -1353,7 +1562,7 @@ window.LegionOrderflow = (function () {
 
   function buildToolbar() {
     const tz = -new Date().getTimezoneOffset() / 60;
-    const tg = [['fpbs', 'FPBS', 'Footprint bar statistics'], ['oi', 'OI', 'Open interest'], ['cvd', 'CVD', 'Cumulative volume delta'], ['poc', 'POC', 'Point of control per candle'], ['va', 'VA', 'Value area (70% of volume) per candle'], ['sig', 'Signals', 'Confirmed CVD divergences, OI regimes, absorption'], ['pdiv', 'Div ?', 'Potential divergences forming now: this timeframe and every higher one up to 1D']];
+    const tg = [['fpbs', 'FPBS', 'Footprint bar statistics'], ['oi', 'OI', 'Open interest'], ['cvd', 'CVD', 'Cumulative volume delta'], ['poc', 'POC', 'Point of control per candle'], ['va', 'VA', 'Value area (70% of volume) per candle'], ['sig', 'Signals', 'Confirmed CVD divergences, OI regimes, absorption'], ['score', 'Score', 'Divergence scorecard: hit rate vs random-entry baseline'], ['pdiv', 'Div ?', 'Potential divergences forming now: this timeframe and every higher one up to 1D']];
     root.innerHTML =
       '<div class="of-toolbar">' +
         '<div class="of-tb-group">' +
@@ -1363,6 +1572,7 @@ window.LegionOrderflow = (function () {
           selectHTML('cluster', 'Cluster', [['delta', 'Delta'], ['volume', 'Volume'], ['bidask', 'Bid / Ask']], opt.cluster) +
           selectHTML('text', 'Text', [['volume', 'All Vol'], ['big', 'Big Vol'], ['bidask', 'Bid × Ask'], ['delta', 'Delta'], ['imbalance', 'Imbalance'], ['none', 'None']], opt.text) +
           selectHTML('candle', 'Candle', [['ohlc', 'OHLC'], ['hidden', 'Hidden']], opt.candle) +
+          selectHTML('agree', 'Div', [[1, 'Any venue'], [2, '2+ venues'], [3, '3+ venues'], [4, 'All 4']], opt.agree) +
         '</div>' +
         '<div class="of-tb-group of-toggles">' + tg.map(([k, l, t]) => `<button class="of-tg${toggles[k] ? ' active' : ''}" data-k="${k}" title="${t}">${l}</button>`).join('') + '</div>' +
         '<div class="of-tb-group of-tb-right">' +
@@ -1378,7 +1588,7 @@ window.LegionOrderflow = (function () {
       sel.onchange = () => {
         const k = sel.dataset.s;
         if (k === 'tf') return setTF(+sel.value);
-        opt[k] = k === 'tick' ? +sel.value : sel.value;
+        opt[k] = k === 'tick' || k === 'agree' ? +sel.value : sel.value;
         requestRender();
       };
     });
@@ -1405,6 +1615,7 @@ window.LegionOrderflow = (function () {
     if (root === el) { requestRender(); return; }
     root = el;
     feedEl = opts && opts.feed ? document.getElementById(opts.feed) : null;
+    scoreEl = opts && opts.score ? document.getElementById(opts.score) : null;
     dpr = window.devicePixelRatio || 1;
     buildDOM();
     bindEvents();
@@ -1414,6 +1625,7 @@ window.LegionOrderflow = (function () {
     pollOI();
     setInterval(pollOI, 10000);
     setInterval(refreshGaps, 60000);
+    setInterval(() => { if (bars.length) loadVenues(loadSeq, true); }, 20000);
     loadMTF();
     setInterval(loadMTF, 5 * 60e3);
     setInterval(() => { if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
@@ -1428,7 +1640,7 @@ window.LegionOrderflow = (function () {
     let fpBars = 0;
     for (let i = geo.startIdx; i <= geo.endIdx; i++) if (toggles.fp && geo.barW >= 12 && footprint(i, geo.bin)) fpBars++;
     const oiSigs = signals.filter(x => x.kind === 'oi');
-    return { textHidden: geo.textHidden, cellsDrawn: geo.cellsDrawn, cellsLabeled: geo.cellsLabeled, oiSigs: oiSigs.length, oiSigsVisible: oiSigs.filter(x => x.i >= geo.startIdx && x.i <= geo.endIdx).map(x => x.tag + '@' + new Date(x.t).toTimeString().slice(0, 5)), sigToggle: toggles.sig, text: opt.text, oiTicks: geo.oiTicks, pdivs: (geo.pdivs || []).map(d => d.tf + ' ' + d.side), pdivTfs: geo.pdivTfs, mainH: geo.mainH, plotW: geo.plotW, yAuto: !yScale, pSpan: Math.round(geo.pMax - geo.pMin), pMid: Math.round((geo.pMax + geo.pMin) / 2), tf: TFS[tfIdx].label, bars: bars.length, visible: geo.endIdx - geo.startIdx + 1, fpBars, bin: geo.bin, W, H, signals: signals.length, offset: view.offset };
+    return { textHidden: geo.textHidden, cellsDrawn: geo.cellsDrawn, cellsLabeled: geo.cellsLabeled, oiSigs: oiSigs.length, oiSigsVisible: oiSigs.filter(x => x.i >= geo.startIdx && x.i <= geo.endIdx).map(x => x.tag + '@' + new Date(x.t).toTimeString().slice(0, 5)), sigToggle: toggles.sig, text: opt.text, oiTicks: geo.oiTicks, pdivs: (geo.pdivs || []).map(d => d.tf + ' ' + d.side), pdivTfs: geo.pdivTfs, mainH: geo.mainH, plotW: geo.plotW, yAuto: !yScale, pSpan: Math.round(geo.pMax - geo.pMin), pMid: Math.round((geo.pMax + geo.pMin) / 2), tf: TFS[tfIdx].label, bars: bars.length, visible: geo.endIdx - geo.startIdx + 1, fpBars, bin: geo.bin, W, H, signals: signals.length, offset: view.offset, score, covStart, venueState: { ...venueState }, cvdLines: geo.cvdLines, divs: signals.filter(x => x.kind === 'div').map(x => ({ t: x.t, side: x.side, agree: x.agree, n: x.nVen, res: x.res })) };
   }
 
   return { init, render: requestRender, state };

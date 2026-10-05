@@ -9,7 +9,7 @@
   <!-- BTC Chart Engine -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script src="btc-chart.js?v=4"></script>
-  <script src="orderflow-chart.js?v=25"></script>
+  <script src="orderflow-chart.js?v=27"></script>
   <script src="education.js?v=6"></script>
   <script src="trade-tracker.js?v=4"></script>
   <style>
@@ -1608,6 +1608,22 @@
       .topbar { padding: 0 16px; }
       .market-pill { display: none; }
     }
+      .of-score-panel { margin-bottom:18px; }
+    .of-score { padding:14px 16px 6px; }
+    .of-score-top { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:12px; }
+    .of-score-big { background:var(--dark3); border:1px solid var(--border2); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; }
+    .of-score-big b { font-size:24px; font-weight:700; }
+    .of-score-big b .up, .of-score-big b.up, .of-score-table .up { color:var(--green); }
+    .of-score-big b .down, .of-score-table .down { color:var(--red); }
+    .of-score-big > span { font-size:11.5px; color:var(--text-muted); }
+    .of-score-table .thin { color:var(--text-muted); font-size:11px; }
+    .of-score-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .of-score-table th { text-align:right; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); padding:7px 10px; border-bottom:1px solid var(--border2); font-weight:600; }
+    .of-score-table td { text-align:right; padding:7px 10px; border-bottom:1px solid rgba(255,255,255,0.035); font-variant-numeric:tabular-nums; }
+    .of-score-table th:first-child, .of-score-table td:first-child { text-align:left; }
+    .of-score-note { font-size:11.5px; line-height:1.55; color:var(--text-muted); margin:10px 0 8px; }
+    .of-score-note b { color:var(--text); }
+    @media (max-width: 600px) { .of-score-table th, .of-score-table td { padding:6px 5px; } .of-score { overflow-x:auto; } }
   </style>
 </head>
 <body>
@@ -1636,7 +1652,7 @@
     </a>
     <a class="nav-item" onclick="showSection('news')" href="#">
       <span class="nav-item-icon">📰</span> Market News
-      <span class="nav-badge">3</span>
+      <span class="nav-badge" id="newsBadge" style="display:none" title="New stories since you last opened Market News"></span>
     </a>
     <a class="nav-item" onclick="showSection('charts')" href="#">
       <span class="nav-item-icon">📊</span> Charts
@@ -1836,6 +1852,10 @@
         <div id="of-chart"></div>
       </div>
       <p class="of-tips"><b>Scroll</b> zoom time · <b>Drag chart</b> pan (up/down moves price) · <b>Drag price axis</b> stretch price · <b>Scroll on price axis</b> zoom price · <b>Drag time axis</b> stretch time · <b>AUTO</b> or double-click an axis to reset</p>
+      <div class="panel of-score-panel">
+        <div class="panel-header"><span class="panel-title">Divergence Scorecard</span><span class="panel-badge">Does the signal actually work?</span></div>
+        <div id="of-score" class="of-score"></div>
+      </div>
       <div class="of-bottom">
         <div class="panel of-feed-panel">
           <div class="panel-header"><span class="panel-title">Signal Feed</span><span class="panel-badge">Closed candles</span></div>
@@ -1856,7 +1876,7 @@
             <div class="chart-feature">
               <div class="chart-feature-icon" style="background:rgba(239,79,90,0.14);color:#ef4f5a;">⇅</div>
               <h4>CVD Divergence</h4>
-              <p>Price makes a higher high while CVD makes a lower high (or a lower low vs higher low) — the move isn't backed by aggressive flow. <b>CVD DIV</b> = confirmed (3 candles after the swing). <b>DIV? 5m</b> (dashed) = forming now on that timeframe, before confirmation; tracked on 1m / 5m / 15m / 1H / 4H / 1D and shown for the timeframe you're on and every higher one (1m chart: all six · 5m: 5m→1D · 15m: 15m→1D · 1H: 1H/4H/1D); the strip at the bottom-left shows which have one forming. Toggle with <b>Div ?</b>.</p>
+              <p>Price makes a higher high while CVD makes a lower high (or a lower low vs a higher low): the move isn't backed by aggressive flow. CVD is read on 4 venues: Binance perp, Binance coin-margined, Binance spot and OKX. <b>2/4</b> = how many of them confirm it (dashed line = only one). <b>✓</b> hit 1.5 ATR, <b>✗</b> failed, <b>?</b> still open with its target and invalidation drawn. The scorecard below shows the hit rate against a random-entry baseline. <b>DIV? 5m</b> = a divergence forming on that timeframe.</p>
             </div>
             <div class="chart-feature">
               <div class="chart-feature-icon" style="background:rgba(31,184,134,0.14);color:#1fb886;">OI</div>
@@ -2407,6 +2427,7 @@
         }
       }, 50);
     }
+    if (id === 'news' && typeof markNewsSeen === 'function') markNewsSeen();
     if (id === 'tracker' && window.LegionTracker) {
       LegionTracker.init('tt-root');
     }
@@ -2415,7 +2436,7 @@
       if (!location.hash.startsWith('#education')) history.replaceState(null, '', '#education');
     }
     if (id === 'orderflow' && window.LegionOrderflow) {
-      setTimeout(() => LegionOrderflow.init('of-chart', { feed: 'of-feed' }), 30);
+      setTimeout(() => LegionOrderflow.init('of-chart', { feed: 'of-feed', score: 'of-score' }), 30);
     }
     if (id === 'btclevels' && typeof LegionChart !== 'undefined') {
       if (!window.legionLevelsLoaded) { window.legionLevelsLoaded = true; setTimeout(() => LegionChart.init('legion-chart'), 50); }
@@ -2659,6 +2680,28 @@
     }, 8000);
   }
 
+  // Menu badge = stories published since the member last opened Market News (first visit: last 2 hours).
+  var NEWS_SEEN_KEY = 'legionNewsSeen';
+  var latestNews = [];
+  function newsSeenAt() {
+    try { var v = Number(localStorage.getItem(NEWS_SEEN_KEY)); if (v) return v; } catch (e) { /* storage blocked */ }
+    return Date.now() - 2 * 3600000;
+  }
+  function updateNewsBadge() {
+    var badge = document.getElementById('newsBadge');
+    if (!badge) return;
+    var seen = newsSeenAt();
+    var n = latestNews.filter(function (a) { return a.ts > seen; }).length;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.style.display = n ? '' : 'none';
+    badge.title = n + ' new ' + (n === 1 ? 'story' : 'stories') + ' since you last opened Market News';
+  }
+  function markNewsSeen() {
+    var newest = latestNews.reduce(function (m, a) { return Math.max(m, a.ts || 0); }, Date.now());
+    try { localStorage.setItem(NEWS_SEEN_KEY, String(newest)); } catch (e) { /* storage blocked */ }
+    updateNewsBadge();
+  }
+
   async function fetchNews() {
     try {
       var r = await fetch('/api/markets/news');
@@ -2679,20 +2722,19 @@
       var ub = document.getElementById('newsUpdatedBadge');
       if (ub) ub.textContent = 'Updated ' + timeAgo(Date.now());
 
-      // Popup for NEW articles (skip first load)
-      var newCount = 0;
+      // Popup for NEW articles (skip first load; at most 3 toasts, but every story is registered)
+      var toasts = 0;
       for (var i = 0; i < articles.length; i++) {
         if (!knownNewsIds.has(articles[i].id)) {
-          if (!newsFirstLoad) { showNewsToast(articles[i]); newCount++; }
+          if (!newsFirstLoad && toasts < 3) { showNewsToast(articles[i]); toasts++; }
           knownNewsIds.add(articles[i].id);
         }
-        if (newCount >= 3) break;
       }
       newsFirstLoad = false;
 
-      // News badge
-      var badge = document.getElementById('newsBadge');
-      if (badge && newCount > 0) { badge.textContent = String(newCount); badge.style.display = ''; }
+      latestNews = articles;
+      if (document.getElementById('sec-news').classList.contains('active')) markNewsSeen();
+      else updateNewsBadge();
     } catch(e) { console.warn('News fetch failed', e); }
   }
 
