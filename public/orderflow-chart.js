@@ -633,6 +633,19 @@ window.LegionOrderflow = (function () {
     feedEl.querySelectorAll('.of-sig').forEach(el => { el.onclick = () => focusTime(+el.dataset.t); });
   }
 
+  // Plain-English meaning of every label the divergence markers and the scorecard use.
+  const GLOSSARY = `<details class="of-gloss" open><summary>What the terms mean</summary><div class="of-gloss-grid">
+    <div><b>ATR (Average True Range)</b>The average size of one candle, high to low, over the last 14 candles. It's a ruler for how much BTC normally moves per candle on this timeframe right now, e.g. ~$120 on 5m, ~$450 on 1H. It grows when the market is volatile and shrinks when it's quiet.</div>
+    <div><b><span class="g-up">target 1.5 ATR</span> (green dashed line)</b>The profit target: 1.5 × ATR away from the entry, in the direction the divergence predicts. Example: entry $86,250 on a bearish 5m divergence with ATR $120 → target 86,250 − 180 = <b>$86,070</b>. Using ATR instead of a fixed dollar amount judges every timeframe and volatility by the same standard.</div>
+    <div><b><span class="g-down">invalidation</span> (red dashed line)</b>The swing high (bearish) or swing low (bullish) that formed the divergence. If price trades back beyond it, the idea is wrong and the signal counts as a loss.</div>
+    <div><b>Entry</b>A swing is only confirmed 3 candles after it prints, so the scorecard enters at the close of that 3rd candle. It never uses information the chart didn't have yet.</div>
+    <div><b><span class="g-up">✓</span> win · <span class="g-down">✗</span> loss · ? open</b>✓ = price reached the target before the invalidation. ✗ = it hit the invalidation first, or reached neither within 50 candles (timeout). ? = still in play, with its target and invalidation drawn on the chart.</div>
+    <div><b>2/4 venues</b>How many exchanges' CVD confirm the divergence: Binance perp, Binance coin-margined, Binance spot, OKX (3 on 1m, where OKX has no data). 1/4 is shown with a dashed line. Use the <b>Div</b> menu to hide weaker ones.</div>
+    <div><b>Hit rate</b>Wins ÷ (wins + losses). Open signals are not counted until they resolve.</div>
+    <div><b>Baseline</b>The hit rate you'd get by entering on <i>every</i> candle with the same 1.5 ATR target and the typical stop distance. It's the "random entry" benchmark: a signal is only useful if it beats this.</div>
+    <div><b>Edge</b>Hit rate minus baseline, in percentage points. Positive = the divergences did better than random entries; negative = worse. Rows with fewer than 10 resolved signals show "too few" because a handful of trades proves nothing.</div>
+  </div></details>`;
+
   function renderScore() {
     const el = scoreEl;
     if (!el) return;
@@ -655,7 +668,8 @@ window.LegionOrderflow = (function () {
         ${score.byAgree.map(r => row(`${r.m} venue${r.m > 1 ? 's' : ''} agree`, r, score.base)).join('')}
       </tbody></table>
       <p class="of-score-note">Sample: ${score.candles} closed ${score.tf} candles (${span}). <b>Win</b> = price moves 1.5 ATR in the divergence's direction, measured from the close of the candle that confirms the swing (3 candles after it), before trading beyond the swing high/low, within ${SCORE.horizon} candles. Otherwise it's a loss, including timeouts. <b>Baseline</b> = the same target and typical stop distance applied from every candle, i.e. what entering anywhere would have scored. Small samples swing a lot, so compare timeframes and treat fewer than ~30 resolved signals as anecdotal.
-      Venues: ${VENUES.map(v => `<span style="color:${v.color}">${v.short}</span> ${venueState[v.id] === 'ok' ? '✓' : venueState[v.id] === 'n/a' ? '(not on 1m)' : venueState[v.id]}`).join(' · ')}.</p>`;
+      Venues: ${VENUES.map(v => `<span style="color:${v.color}">${v.short}</span> ${venueState[v.id] === 'ok' ? '✓' : venueState[v.id] === 'n/a' ? '(not on 1m)' : venueState[v.id]}`).join(' · ')}.</p>
+      ${GLOSSARY}`;
   }
 
   function focusTime(t) {
