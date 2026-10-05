@@ -207,15 +207,31 @@ let store = { updated: 0, fred: {}, boj: [] };
 try { store = { ...store, ...JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8')) }; } catch { /* first run */ }
 const save = () => { try { fs.mkdirSync(config.dataDir, { recursive: true }); fs.writeFileSync(CACHE_FILE, JSON.stringify(store)); } catch (e) { console.error('[macro] save:', e.message); } };
 
-async function fredCsv(id) {
-  const res = await fetch(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30000) });
+// Bundled snapshot (seed/macro-fred.json.gz, rebuilt with `node tools/macro-seed.mjs`): charts work immediately on a
+// fresh server and keep working if FRED's website refuses the host (it stalls some cloud IPs). Live data replaces it.
+const SEED_FILE = new URL('../seed/macro-fred.json.gz', import.meta.url);
+try {
+  const seed = JSON.parse(zlib.gunzipSync(fs.readFileSync(SEED_FILE)).toString());
+  let used = 0;
+  for (const [id, pts] of Object.entries(seed.fred)) if (!store.fred[id]) { store.fred[id] = pts; used++; }
+  if (!store.boj.length) store.boj = seed.boj || [];
+  if (used && !store.updated) store.updated = seed.updated;
+  if (used) console.log(`[macro] loaded ${used} series from the bundled snapshot (${new Date(seed.updated).toISOString().slice(0, 10)})`);
+} catch (e) { console.error('[macro] seed:', e.message); }
+
+// FRED's official API (free key, env FRED_API_KEY) is the reliable route from servers; the public CSV needs no key.
+const fredStatus = { via: process.env.FRED_API_KEY ? 'api' : 'csv', lastAttempt: 0, lastOk: store.updated, lastError: null };
+async function fredSeries(id) {
+  const key = process.env.FRED_API_KEY;
+  const url = key
+    ? `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${encodeURIComponent(key)}&file_type=json`
+    : `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
+  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`FRED ${id} HTTP ${res.status}`);
   const pts = [];
-  for (const line of (await res.text()).trim().split('\n').slice(1)) {
-    const [d, v] = line.split(',');
-    const t = Date.parse(d), n = parseFloat(v);
-    if (Number.isFinite(t) && Number.isFinite(n)) pts.push([t, n]);
-  }
+  const push = (d, v) => { const t = Date.parse(d), n = parseFloat(v); if (Number.isFinite(t) && Number.isFinite(n)) pts.push([t, n]); };
+  if (key) for (const o of (await res.json()).observations || []) push(o.date, o.value);
+  else for (const line of (await res.text()).trim().split('\n').slice(1)) push(...line.split(','));
   if (pts.length < 10) throw new Error(`FRED ${id}: no data`);
   return pts;
 }
@@ -233,19 +249,30 @@ async function bojDecisions() {
 let refreshing = null;
 async function refreshSeries() {
   if (refreshing) return refreshing;
+  fredStatus.lastAttempt = Date.now();
   refreshing = (async () => {
     const ids = [...new Set([...SERIES.flatMap(s => [].concat(s.fred || [])), 'USREC'])];
-    let ok = 0;
+    let ok = 0, lastErr = null;
     for (let i = 0; i < ids.length; i += 4) {
       const batch = ids.slice(i, i + 4);
-      const res = await Promise.allSettled(batch.map(fredCsv));
-      res.forEach((r, j) => { if (r.status === 'fulfilled') { store.fred[batch[j]] = r.value; ok++; } else console.error('[macro]', r.reason.message); });
+      const res = await Promise.allSettled(batch.map(fredSeries));
+      res.forEach((r, j) => {
+        if (r.status === 'fulfilled') { store.fred[batch[j]] = r.value; ok++; }
+        else { lastErr = r.reason.name === 'TimeoutError' ? `FRED ${batch[j]}: timed out` : r.reason.message; console.error('[macro]', lastErr); }
+      });
+      if (!ok && i >= 4) break; // first two batches all failed: FRED is unreachable from here, don't wait out the rest
     }
     try { store.boj = await bojDecisions(); } catch (e) { console.error('[macro] boj:', e.message); }
-    if (ok) { store.updated = Date.now(); save(); }
-    console.log(`[macro] refreshed ${ok}/${ids.length} FRED series, ${store.boj.length} BoJ decisions`);
+    if (ok) { store.updated = Date.now(); fredStatus.lastOk = store.updated; save(); }
+    fredStatus.lastError = ok === ids.length ? null : `${ids.length - ok}/${ids.length} series failed. Last: ${lastErr}`;
+    console.log(`[macro] refreshed ${ok}/${ids.length} FRED series via ${fredStatus.via}, ${store.boj.length} BoJ decisions`);
   })().finally(() => { refreshing = null; });
   return refreshing;
+}
+// Background refresh, never on a member's request path, and at most every 30 minutes when FRED keeps failing.
+function refreshInBackground() {
+  if (refreshing || Date.now() - fredStatus.lastAttempt < 30 * 60000) return;
+  refreshSeries().catch(e => console.error('[macro] refresh:', e.message));
 }
 
 function applyTf(s, raw) {
@@ -345,11 +372,13 @@ function refreshAfterRelease(events, now) {
   });
   if (!released) return;
   lastReleaseCheck = now;
-  refreshSeries().catch(e => console.error('[macro] refresh:', e.message));
+  fredStatus.lastAttempt = 0;
+  refreshInBackground();
 }
 
 async function getSeries() {
-  if (!store.updated) await refreshSeries();
+  if (!Object.keys(store.fred).length) await refreshSeries(); // no snapshot at all: first fill must wait
+  else if (Date.now() - store.updated > 3 * 3600000) refreshInBackground();
   const events = await getRateEvents().catch(() => []);
   const now = Date.now();
   refreshAfterRelease(events, now);
@@ -361,7 +390,7 @@ async function getSeries() {
     // point times are sent as days since epoch to keep the payload small
     return { ...meta, source: s.id === 'jpintr' ? 'OECD (BoJ rate) to 2001, BoJ decisions since' : 'FRED: ' + [].concat(fred).join(' + '), points: pts.map(([t, v]) => [Math.floor(t / DAY), v]), next: next ? { date: next.date, title: next.title, forecast: next.forecast } : estimatedNext(s.id) };
   }).filter(Boolean);
-  return { updated: store.updated, series, banks: centralBanks(events), recessions: recessions() };
+  return { updated: store.updated, series, banks: centralBanks(events), recessions: recessions(), fred: { ...fredStatus } };
 }
 
 // ---------- routes ----------
@@ -400,7 +429,6 @@ export function registerMacroRoutes(router) {
 }
 
 export function startMacro() {
-  const stale = Date.now() - store.updated > 3 * 3600000;
-  if (stale) setTimeout(() => refreshSeries().catch(e => console.error('[macro] refresh:', e.message)), 8000);
-  setInterval(() => refreshSeries().catch(e => console.error('[macro] refresh:', e.message)), 3 * 3600000).unref();
+  if (Date.now() - store.updated > 3 * 3600000) setTimeout(refreshInBackground, 8000);
+  setInterval(() => { fredStatus.lastAttempt = 0; refreshInBackground(); }, 3 * 3600000).unref();
 }
