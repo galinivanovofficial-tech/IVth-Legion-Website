@@ -46,6 +46,10 @@ async function tvEvents(from, to, countries = CAL_COUNTRIES) {
   return rows;
 }
 
+// TradingView ranks some headline prints lower than their siblings (e.g. PPI YoY = low while CPI YoY = high).
+// Lift those so they show with the default High + Medium filter and trigger release alerts.
+const IMPORTANCE_OVERRIDES = { 'US|PPI YoY': 1, 'US|Core PPI YoY': 0 };
+
 function slimEvents(rows) {
   const units = {};
   for (const e of rows) if (e.unit) units[e.country + e.title] = e.unit;
@@ -53,7 +57,7 @@ function slimEvents(rows) {
     id: e.id, title: e.title, country: e.country, ticker: e.ticker || '', category: e.category || '', period: e.period || '',
     actual: e.actual ?? null, forecast: e.forecast ?? null, previous: e.previous ?? null,
     unit: e.unit || units[e.country + e.title] || '', scale: e.scale || '', currency: e.currency || '',
-    importance: e.importance, date: e.date, source: e.source || '', sourceUrl: /^https?:\/\//.test(e.source_url || '') ? e.source_url : '',
+    importance: IMPORTANCE_OVERRIDES[e.country + '|' + e.title] ?? e.importance, date: e.date, source: e.source || '', sourceUrl: /^https?:\/\//.test(e.source_url || '') ? e.source_url : '',
     comment: (e.comment || '').slice(0, 700),
   })).sort((a, b) => a.date.localeCompare(b.date) || b.importance - a.importance);
 }
