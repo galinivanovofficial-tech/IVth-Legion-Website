@@ -73,7 +73,7 @@ window.LegionOrderflow = (function () {
 
   // ── Data ─────────────────────────────────────────────────────────
   async function getJSON(u) {
-    const r = await fetch(u);
+    const r = await fetch(u, { referrerPolicy: 'no-referrer' }); // Binance refuses some Referer hosts (e.g. sslip.io)
     if (!r.ok) throw new Error(u + ' → ' + r.status);
     return r.json();
   }

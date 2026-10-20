@@ -138,9 +138,9 @@ export function registerAuthRoutes(router) {
   router.post('/api/auth/login', (req, res) => {
     if (!rateLimit(`login:${req.ip}`, 12, 15 * 60 * 1000)) return res.json(429, { error: 'Too many attempts. Try again later.' });
     const { email, password } = req.body || {};
-    const user = Users.byEmail(email || '');
+    const user = Users.byLogin(email || '');
     if (!user || !verifyPassword(String(password || ''), user.password_hash)) {
-      return res.json(401, { error: 'Incorrect email or password.' });
+      return res.json(401, { error: 'Incorrect email, username or password.' });
     }
     Audit.log(user.id, 'login');
     setSession(res, user);

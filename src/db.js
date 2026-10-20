@@ -70,6 +70,13 @@ export const Users = {
   },
   byId(id) { return db.prepare(`SELECT ${cols} FROM users WHERE id = ?`).get(id) || null; },
   byEmail(email) { return db.prepare(`SELECT ${cols} FROM users WHERE email = ?`).get(String(email).toLowerCase()) || null; },
+  // Sign-in accepts the email or the account name (only when exactly one account has that name).
+  byLogin(login) {
+    const v = String(login || '').trim();
+    if (v.includes('@')) return this.byEmail(v);
+    const rows = v ? db.prepare(`SELECT ${cols} FROM users WHERE lower(name) = lower(?)`).all(v) : [];
+    return rows.length === 1 ? rows[0] : null;
+  },
   byCustomer(cid) { return cid ? db.prepare(`SELECT ${cols} FROM users WHERE stripe_customer_id = ?`).get(cid) || null : null; },
   bySubscription(sid) { return sid ? db.prepare(`SELECT ${cols} FROM users WHERE subscription_id = ?`).get(sid) || null : null; },
   byTelegramUserId(tid) { return tid ? db.prepare(`SELECT ${cols} FROM users WHERE telegram_user_id = ?`).get(String(tid)) || null : null; },

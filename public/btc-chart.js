@@ -105,7 +105,7 @@ window.LegionChart = (function () {
 
   // ── Data ──
   function fetchKlines(interval, limit) {
-    return fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval='+interval+'&limit='+limit)
+    return fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval='+interval+'&limit='+limit, { referrerPolicy: 'no-referrer' })
       .then(function(r){ return r.json(); })
       .then(function(data){ return data.map(function(d){return{t:d[0],o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]};});});
   }

@@ -8,10 +8,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <!-- BTC Chart Engine -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script src="btc-chart.js?v=4"></script>
-  <script src="orderflow-chart.js?v=28"></script>
+  <script src="btc-chart.js?v=5"></script>
+  <script src="orderflow-chart.js?v=29"></script>
   <script src="education.js?v=6"></script>
-  <script src="trade-tracker.js?v=4"></script>
+  <script src="trade-tracker.js?v=5"></script>
   <script src="macro-hub.js?v=8"></script>
   <style>
     :root {
@@ -2718,8 +2718,8 @@
   async function fetchCryptoPrices() {
     try {
       var [btcR, ethR] = await Promise.all([
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT'),
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT')
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT', { referrerPolicy: 'no-referrer' }),
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT', { referrerPolicy: 'no-referrer' })
       ]);
       var btc = await btcR.json(), eth = await ethR.json();
       var btcP = parseFloat(btc.lastPrice), btcC = parseFloat(btc.priceChangePercent);
