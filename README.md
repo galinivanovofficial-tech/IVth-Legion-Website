@@ -157,3 +157,5 @@ Payment fails / cancels → grace period → hourly job removes them from the gr
 - **Password reset by email** and **transactional emails** (welcome, dunning) are the natural next additions — the audit log and hooks are already in place. They need an email provider (e.g. Resend/Postmark) which is the one external service not yet wired.
 - Dashboard market data (signals, news) is sample content — wire it to your real sources or post via the Telegram bot.
 - This software is provided for the IVth Legion community. Trading involves risk; nothing here is financial advice.
+
+Deployed automatically: GitHub Actions → Artifact Registry → server.
