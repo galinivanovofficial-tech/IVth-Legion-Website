@@ -433,7 +433,33 @@ async function getYtdRoi(asset) {
   });
 }
 
+// ---------- BTC daily closes (Bitstamp, from 2018) for the "BTC around mega IPOs" chart ----------
+async function getBtcDaily() {
+  return cached('btc:daily', 6 * 3600, async () => {
+    const out = [];
+    let start = Math.floor(Date.UTC(2018, 0, 1) / 1000);
+    const end = Math.floor(Date.now() / 1000);
+    while (start < end) {
+      const d = await fetchJSON(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit=1000&start=${start}`);
+      const bars = d?.data?.ohlc || [];
+      if (!bars.length) break;
+      for (const b of bars) {
+        const ts = Number(b.timestamp), close = parseFloat(b.close);
+        if (ts && close > 0) out.push([new Date(ts * 1000).toISOString().slice(0, 10), Math.round(close * 100) / 100]);
+      }
+      start = Number(bars[bars.length - 1].timestamp) + 86400;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    const seen = new Set();
+    return out.filter(([d]) => !seen.has(d) && seen.add(d)); // [["2018-01-01", 13880.0], ...] oldest first
+  });
+}
+
 export function registerMarketRoutes(router) {
+  router.get('/api/markets/btc-daily', async (req, res) => {
+    try { res.json(200, { days: await getBtcDaily() }); }
+    catch (e) { console.error('[markets] btc-daily:', e.message); res.json(502, { error: 'BTC history unavailable' }); }
+  });
   router.get('/api/markets/fng', async (req, res) => {
     try { res.json(200, await getFearGreed()); }
     catch (e) { console.error('[markets] fng:', e.message); res.json(502, { error: 'fear & greed unavailable' }); }

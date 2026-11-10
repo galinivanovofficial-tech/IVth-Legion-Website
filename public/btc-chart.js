@@ -719,6 +719,19 @@ window.LegionChart = (function () {
       render();
     }, {passive:false});
     window.addEventListener('resize', function() { render(); });
+    // Shift + drag selects a range of candles to zoom into; right-click resets (plain drag keeps panning)
+    if (window.LegionZoom) LegionZoom.attach(canvas, {
+      shift: true,
+      plot: function() { return { l: chartLeft, r: chartLeft + getPlotW() }; },
+      onZoom: function(a, b) {
+        var bw = getPlotW() / visibleBars, start = Math.max(0, candles.length - visibleBars - scrollOffset);
+        var i1 = start + Math.floor((a - chartLeft) / bw), i2 = start + Math.floor((b - chartLeft) / bw);
+        visibleBars = Math.max(20, Math.min(candles.length, i2 - i1 + 1));
+        scrollOffset = Math.max(0, Math.min(candles.length - visibleBars, candles.length - (i1 + visibleBars)));
+        render();
+      },
+      onReset: function() { visibleBars = Math.min(150, candles.length); scrollOffset = 0; render(); }
+    });
   }
 
   function startPulseAnimation() {

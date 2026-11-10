@@ -438,14 +438,14 @@
         if (!cv || e.pointerType === 'touch') return;
         cv._hover = e.clientX - cv.getBoundingClientRect().left;
         const s = this.byId(cv.dataset.series);
-        plot(cv, s, ...this.windowFor(s, this.range), { fmt: this.fmt.bind(this), hover: cv._hover });
+        plot(cv, s, ...(cv._zoom || this.windowFor(s, this.range)), { fmt: this.fmt.bind(this), hover: cv._hover });
       });
       root.addEventListener('pointerout', e => {
         const cv = e.target.closest?.('canvas[data-series]');
         if (!cv || cv.contains(e.relatedTarget)) return;
         cv._hover = null;
         const s = this.byId(cv.dataset.series);
-        plot(cv, s, ...this.windowFor(s, this.range), { fmt: this.fmt.bind(this) });
+        plot(cv, s, ...(cv._zoom || this.windowFor(s, this.range)), { fmt: this.fmt.bind(this) });
       });
       setInterval(() => { if (this.root?.offsetParent || this.modal?.open) this.refresh(); }, 10 * 60000);
       window.addEventListener('resize', () => { if (this.root && this.root.offsetParent) this.drawAll(); });
@@ -522,10 +522,29 @@
       const end = s.kind === 'step' ? Date.now() : s.points.at(-1)[0];
       return [days ? Math.max(s.points[0][0], Date.now() - days * DAY) : s.points[0][0], end]; // pre-1970 times are negative
     },
+    // drag across a card to zoom it (a plain click still opens full screen), right-click to reset
+    attachCardZoom(cv) {
+      if (!window.LegionZoom || cv._lz) return;
+      cv._lz = true;
+      const L = 6, R = 48;
+      LegionZoom.attach(cv, {
+        plot: () => ({ l: L, r: cv.clientWidth - R }),
+        onZoom: (x1, x2) => {
+          const s = this.byId(cv.dataset.series), [a, b] = cv._zoom || this.windowFor(s, this.range), pw = cv.clientWidth - L - R;
+          const t = x => a + ((x - L) / pw) * (b - a);
+          let t1 = t(x1), t2 = t(x2);
+          if (t2 - t1 < 21 * DAY) { const m = (t1 + t2) / 2; t1 = m - 10.5 * DAY; t2 = m + 10.5 * DAY; }
+          cv._zoom = [t1, t2];
+          plot(cv, s, t1, t2, { fmt: this.fmt.bind(this), hover: cv._hover });
+        },
+        onReset: () => { cv._zoom = null; const s = this.byId(cv.dataset.series); plot(cv, s, ...this.windowFor(s, this.range), { fmt: this.fmt.bind(this) }); },
+      });
+    },
     drawAll() {
       this.root?.querySelectorAll('canvas[data-series]').forEach(cv => {
+        this.attachCardZoom(cv);
         const s = this.byId(cv.dataset.series);
-        if (s) plot(cv, s, ...this.windowFor(s, this.range), { fmt: this.fmt.bind(this), hover: cv._hover });
+        if (s) plot(cv, s, ...(cv._zoom || this.windowFor(s, this.range)), { fmt: this.fmt.bind(this), hover: cv._hover });
       });
       if (this.modal?.open) this.drawModal();
     },
@@ -606,7 +625,7 @@
         </div>
         <div class="mh-mbar">
           <div class="tt-chips">${RANGES.map(([r]) => `<button class="tt-chip${r === m.range ? ' on' : ''}" data-mrange="${r}">${r}</button>`).join('')}<button class="tt-chip" data-m="reset">Reset zoom</button></div>
-          <span class="mh-dim">Scroll or pinch to zoom · drag to pan · double-click to reset · ← → next chart</span>
+          <span class="mh-dim">Drag to zoom in · right-click to reset · Shift + drag to pan · scroll or pinch to zoom · ← → next chart</span>
         </div>
         <div class="mh-mstats" id="mh-mstats"></div>
         <div class="mh-mcv"><canvas id="mh-mcanvas"></canvas></div>
@@ -623,6 +642,8 @@
         this.setWindow(t - (t - m.a) * k, t + (m.b - t) * k);
       }, { passive: false });
       cv.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'mouse' && e.button === 0 && !e.shiftKey) return; // plain drag is the zoom selection
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
         cv.setPointerCapture(e.pointerId);
         ptrs.set(e.pointerId, e.clientX);
         if (ptrs.size === 1) drag = { x: e.clientX, a: m.a, b: m.b };
@@ -645,6 +666,11 @@
       cv.addEventListener('pointercancel', up);
       cv.addEventListener('pointerleave', () => { if (!drag) { m.hover = null; this.drawModal(); } });
       cv.addEventListener('dblclick', () => this.setWindow(...this.windowFor(s, m.range)));
+      if (window.LegionZoom) LegionZoom.attach(cv, {
+        plot: () => ({ l: 12, r: cv.clientWidth - 70 }),
+        onZoom: (x1, x2) => { const pw = cv.clientWidth - 82, t = x => m.a + ((x - 12) / pw) * (m.b - m.a); m.hover = null; this.setWindow(t(x1), t(x2)); },
+        onReset: () => this.setWindow(...this.windowFor(s, m.range)),
+      });
       requestAnimationFrame(() => this.drawModal());
     },
     drawModal() {

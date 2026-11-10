@@ -8,11 +8,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <!-- BTC Chart Engine -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script src="btc-chart.js?v=5"></script>
-  <script src="orderflow-chart.js?v=29"></script>
+  <script src="chart-zoom.js?v=1"></script>
+  <script src="btc-chart.js?v=6"></script>
+  <script src="orderflow-chart.js?v=30"></script>
   <script src="education.js?v=6"></script>
   <script src="trade-tracker.js?v=5"></script>
-  <script src="macro-hub.js?v=8"></script>
+  <script src="macro-hub.js?v=9"></script>
   <style>
     :root {
       --gold: #c9a84c;
@@ -1839,6 +1840,38 @@
     .mh-al-f { margin-top:10px; display:flex; justify-content:flex-end; }
     @media (max-width: 1100px) { .mh-cal { grid-template-columns:minmax(0,1fr); } .mh-side { position:static; } }
     @media (max-width: 600px) { .mh-tz-note { margin-left:0; width:100%; } .mh-table td, .mh-table th { padding:7px 7px; } .mh-chart-v { font-size:17px; } }
+  
+    /* ── BTC vs mega IPOs ── */
+    .ipo-root { padding:14px 16px 6px; }
+    .ipo-ctl { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+    .ipo-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
+    .ipo-lbl { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-left:6px; }
+    .ipo-row .ipo-lbl:first-child { margin-left:0; }
+    .ipo-input { background:var(--dark3); color:var(--text); border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:5px 8px; font:12px 'Inter',sans-serif; }
+    .ipo-check { display:flex; align-items:center; gap:6px; font-size:12px; color:#b9bdd6; margin-left:8px; cursor:pointer; }
+    .ipo-check input { accent-color:var(--gold); }
+    .ipo-legend { display:flex; flex-wrap:wrap; gap:6px; }
+    .ipo-key { display:flex; align-items:center; gap:6px; background:var(--dark3); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:4px 10px; color:var(--text); font:600 12px 'Inter',sans-serif; cursor:pointer; }
+    .ipo-key i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .ipo-key span { font-weight:400; color:var(--text-muted); }
+    .ipo-key.off { opacity:.4; }
+    .ipo-wrap { position:relative; height:420px; }
+    .ipo-wrap canvas { width:100%; height:100%; display:block; cursor:crosshair; }
+    .ipo-tip { display:none; position:absolute; top:6px; background:rgba(13,13,24,0.95); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:12px; pointer-events:none; min-width:200px; }
+    .ipo-tip div { margin-top:3px; white-space:nowrap; }
+    .ipo-tip i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+    .ipo-tip span { color:var(--text-muted); }
+    .ipo-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
+    .ipo-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:600; padding:7px 10px; border-bottom:1px solid var(--border2); }
+    .ipo-table td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:top; }
+    .ipo-table .r { text-align:right; white-space:nowrap; }
+    .ipo-table .up { color:var(--green); } .ipo-table .down { color:var(--red); }
+    .ipo-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+    .ipo-dim { color:var(--text-muted); font-size:11px; }
+    .ipo-stats { overflow-x:auto; }
+    .ipo-note { font-size:11.5px; line-height:1.55; color:var(--text-muted); margin:12px 0 8px; }
+    @media (max-width: 600px) { .ipo-wrap { height:320px; } .ipo-table th, .ipo-table td { padding:6px 5px; } }
+      .lz-box { display:none; position:absolute; background:rgba(201,168,76,0.14); border-left:1px solid rgba(201,168,76,0.7); border-right:1px solid rgba(201,168,76,0.7); pointer-events:none; z-index:5; }
   </style>
 </head>
 <body>
@@ -2069,7 +2102,7 @@
       <div class="panel of-panel">
         <div id="of-chart"></div>
       </div>
-      <p class="of-tips"><b>Scroll</b> zoom time · <b>Drag chart</b> pan (up/down moves price) · <b>Drag price axis</b> stretch price · <b>Scroll on price axis</b> zoom price · <b>Drag time axis</b> stretch time · <b>AUTO</b> or double-click an axis to reset</p>
+      <p class="of-tips"><b>Scroll</b> zoom time · <b>Shift + drag</b> zoom into a range · <b>Right-click</b> reset · <b>Drag chart</b> pan (up/down moves price) · <b>Drag price axis</b> stretch price · <b>Scroll on price axis</b> zoom price · <b>Drag time axis</b> stretch time · <b>AUTO</b> or double-click an axis to reset</p>
       <div class="panel of-score-panel">
         <div class="panel-header"><span class="panel-title">Divergence Scorecard</span><span class="panel-badge">Does the signal actually work?</span></div>
         <div id="of-score" class="of-score"></div>
@@ -2159,6 +2192,18 @@
         <button class="chart-tab active" onclick="switchChartTab('supplyPL', this)">BTC Supply in Profit/Loss</button>
         <button class="chart-tab" onclick="switchChartTab('ytdROI', this)">Year-to-Date ROI</button>
         <button class="chart-tab" onclick="switchChartTab('fng', this)">Fear & Greed</button>
+        <button class="chart-tab" onclick="switchChartTab('ipo', this)">BTC vs Mega IPOs</button>
+      </div>
+
+      <!-- ── BTC around mega IPOs ── -->
+      <div class="chart-sub" id="chartSub-ipo" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🚀 BTC Before Mega IPOs: SpaceX → Anthropic → OpenAI</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="ipo-root" class="ipo-root"></div>
+        </div>
       </div>
 
       <!-- ── Supply in Profit/Loss ── -->
@@ -2864,6 +2909,7 @@
 <script src="data-risk.js?v=20260914b"></script>
 <script src="data-roi.js?v=20260914b"></script>
 <script src="data-fng.js?v=20260914b"></script>
+<script src="ipo-chart.js?v=3"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
 (function(){
@@ -2891,13 +2937,15 @@
   }
 
   /* ── RISK / EUPHORIA ── */
+  let riskZoom=null, roiZoom=null; // [from, to] while zoomed in: fractional years / day of year
   function drawRisk(){
     const cv=document.getElementById('riskCanvas'); if(!cv||!window.LEGION_RISK) return;
     const D=window.LEGION_RISK, X=D.x, P=D.p, R=D.r;
     const {ctx,w,h}=setup(cv);
     const pad={l:52,r:14,t:14,b:26}, plotW=w-pad.l-pad.r, plotH=h-pad.t-pad.b;
-    const xmin=X[0], xmax=X[X.length-1];
-    let pmin=Infinity,pmax=-Infinity; for(const v of P){ if(v<pmin)pmin=v; if(v>pmax)pmax=v; }
+    const xmin=riskZoom?riskZoom[0]:X[0], xmax=riskZoom?riskZoom[1]:X[X.length-1];
+    let pmin=Infinity,pmax=-Infinity; for(let i=0;i<P.length;i++){ if(X[i]<xmin||X[i]>xmax) continue; const v=P[i]; if(v<pmin)pmin=v; if(v>pmax)pmax=v; }
+    if(pmin===Infinity){ pmin=P[0]; pmax=P[P.length-1]; }
     const loE=Math.floor(Math.log10(pmin)), hiE=Math.ceil(Math.log10(pmax));
     const mapX=x=>pad.l+(x-xmin)/(xmax-xmin)*plotW;
     const mapY=lp=>pad.t+(hiE-lp)/(hiE-loE)*plotH;
@@ -2908,16 +2956,22 @@
       ctx.fillStyle='#666688'; ctx.fillText(fmtPrice(Math.pow(10,e)), pad.l-8, y);
     }
     ctx.textAlign='center'; ctx.textBaseline='top';
-    for(let yr=Math.ceil(xmin);yr<=Math.floor(xmax);yr++){ const x=mapX(yr);
+    const tStep=(xmax-xmin)>4?1:(xmax-xmin)>1.5?0.25:1/12; // years, quarters or months when zoomed in
+    for(let t=Math.ceil(xmin/tStep)*tStep;t<=xmax+1e-9;t+=tStep){ const x=mapX(t);
       ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,h-pad.b); ctx.stroke();
-      ctx.fillStyle='#666688'; ctx.fillText(String(yr), x, h-pad.b+6);
+      const yr=Math.floor(t+1e-9), mo=Math.round((t-yr)*12);
+      ctx.fillStyle='#666688'; ctx.fillText(tStep===1||mo===0?String(yr):['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]+" '"+String(yr).slice(2), x, h-pad.b+6);
     }
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l,pad.t,plotW,plotH); ctx.clip();
     for(let i=0;i<X.length;i++){
+      if(X[i]<xmin||X[i]>xmax) continue;
       const b=Math.min(9,Math.max(0,Math.floor(R[i]*10)));
       ctx.fillStyle=RISK_COLORS[b];
       const x=mapX(X[i]), y=mapY(Math.log10(P[i]));
       ctx.fillRect(x-0.8,y-0.8,1.9,1.9);
     }
+    ctx.restore();
+    if(riskZoom){ ctx.fillStyle='#e8c96a'; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.font='600 10px Inter, sans-serif'; ctx.fillText('Zoomed: right-click to reset', w-pad.r-4, pad.t+4); }
     const badge=document.getElementById('riskBadge'); if(badge) badge.textContent='Risk '+D.latest.risk.toFixed(3);
   }
   function buildRiskLegend(){
@@ -2959,18 +3013,19 @@
     let curDoy=-1; if(curArr) for(let d=0;d<366;d++) if(curArr[d]!=null) curDoy=d;
     const yearsToLine = (key==='none') ? Object.keys(R.years).map(Number) : mem;
 
-    const ys=[]; const push=a=>{ if(!a)return; for(let d=0;d<366;d++) if(a[d]!=null) ys.push(a[d]); };
+    const dMin=roiZoom?roiZoom[0]:0, dMax=roiZoom?roiZoom[1]:365;
+    const ys=[]; const push=a=>{ if(!a)return; for(let d=dMin;d<=dMax;d++) if(a[d]!=null) ys.push(a[d]); };
     if(showYears) yearsToLine.forEach(y=>push(R.years[String(y)]));
-    if(hasAvg) for(let d=0;d<366;d++) if(st.mean[d]!=null){ ys.push(st.mean[d]+sdMul*(st.sd[d]||0)); ys.push(st.mean[d]-sdMul*(st.sd[d]||0)); }
+    if(hasAvg) for(let d=dMin;d<=dMax;d++) if(st.mean[d]!=null){ ys.push(st.mean[d]+sdMul*(st.sd[d]||0)); ys.push(st.mean[d]-sdMul*(st.sd[d]||0)); }
     if(showCur) push(curArr);
-    ys.push(1);
+    if(!roiZoom) ys.push(1);
     let yMin=Math.min(...ys), yMax=Math.max(...ys);
     if(yMin===yMax){ yMin-=0.1; yMax+=0.1; }
     const p=(yMax-yMin)*0.06; yMin-=p; yMax+=p;
 
     const {ctx,w,h}=setup(cv);
     const pad={l:52,r:16,t:14,b:26}, plotW=w-pad.l-pad.r, plotH=h-pad.t-pad.b;
-    const mapX=d=>pad.l+(d/365)*plotW;
+    const mapX=d=>pad.l+((d-dMin)/(dMax-dMin))*plotW;
     const mapY=v=>pad.t+(yMax-v)/(yMax-yMin)*plotH;
 
     ctx.font='10px Inter, sans-serif'; ctx.textBaseline='middle'; ctx.textAlign='right';
@@ -2980,10 +3035,13 @@
       ctx.fillStyle='#666688'; ctx.fillText(fmtPct(t), pad.l-8, y);
     }
     ctx.textAlign='center'; ctx.textBaseline='top';
-    MONTH_DOY.forEach((d,i)=>{ const x=mapX(d);
+    MONTH_DOY.forEach((d,i)=>{ if(d<dMin||d>dMax) return; const x=mapX(d);
       ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,h-pad.b); ctx.stroke();
       ctx.fillStyle='#666688'; ctx.fillText(MONTHS[i], x, h-pad.b+6);
     });
+    if(dMax-dMin<=62){ for(let d=Math.ceil(dMin/7)*7; d<=dMax; d+=7){ if(MONTH_DOY.includes(d)) continue; const dt=new Date(Date.UTC(2024,0,1+d));
+      ctx.fillStyle='#4a4d66'; ctx.fillText(dt.getUTCDate()+' '+MONTHS[dt.getUTCMonth()], mapX(d), h-pad.b+6); } }
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l,pad.t-2,plotW,plotH+4); ctx.clip();
 
     if(hasAvg && sdMul>0){
       ctx.beginPath(); let started=false;
@@ -2997,6 +3055,8 @@
     if(hasAvg) line(st.mean,'#c9a84c',2.2);
     if(showCur&&curArr){ line(curArr,'#35d0e0',2.4,curDoy);
       if(curDoy>=0){ const x=mapX(curDoy),y=mapY(curArr[curDoy]); ctx.fillStyle='#35d0e0'; ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fill(); } }
+    ctx.restore();
+    if(roiZoom){ ctx.fillStyle='#e8c96a'; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.font='600 10px Inter, sans-serif'; ctx.fillText('Zoomed: right-click to reset', w-pad.r-4, pad.t+4); }
 
     const ro=document.getElementById('roiReadout');
     if(ro){ let s=''; if(showCur&&curDoy>=0){ s=`${curKey} YTD <strong>${curArr[curDoy].toFixed(3)}</strong>`; if(hasAvg&&st.mean[curDoy]!=null) s+=` · cycle avg ${st.mean[curDoy].toFixed(3)}`; } ro.innerHTML=s; }
@@ -3022,7 +3082,10 @@
   });
   let rt; window.addEventListener('resize', ()=>{ clearTimeout(rt); rt=setTimeout(()=>{ const s=document.getElementById('sec-cycles'); if(s&&s.classList.contains('active')) render(); },150); });
 
-  window.LegionCharts = { render, drawRisk, drawROI };
+  window.LegionCharts = { render, drawRisk, drawROI,
+    riskView(){ const X=window.LEGION_RISK.x; return riskZoom||[X[0],X[X.length-1]]; },
+    roiView(){ return roiZoom||[0,365]; },
+    zoomRisk(z){ riskZoom=z; drawRisk(); }, zoomROI(z){ roiZoom=z; drawROI(); } };
 })();
 
 /* ════════ Charts Section — Supply P/L + Enhanced YTD ROI ════════ */
@@ -3038,6 +3101,7 @@
     if (tab === 'supplyPL') drawSupplyPL();
     if (tab === 'ytdROI') drawYtdROI();
     if (tab === 'fng') drawFNG();
+    if (tab === 'ipo' && window.LegionIPO) window.LegionIPO.draw();
   };
 
   /* ── SUPPLY IN PROFIT / LOSS ── */
@@ -4539,9 +4603,10 @@
       var w = rect.width, h = rect.height;
       var pad = {l:52, r:14, t:14, b:26}, plotW = w - pad.l - pad.r;
       if (mx < pad.l || mx > w - pad.r) { rTip.style.display = 'none'; rLine.style.display = 'none'; return; }
-      var xFrac = (mx - pad.l) / plotW;
-      var idx = Math.round(xFrac * (D.x.length - 1));
-      idx = Math.max(0, Math.min(D.x.length - 1, idx));
+      var view = window.LegionCharts.riskView(), xv = view[0] + (mx - pad.l) / plotW * (view[1] - view[0]);
+      var lo = 0, hi = D.x.length - 1;
+      while (lo < hi) { var mid = (lo + hi) >> 1; if (D.x[mid] < xv) lo = mid + 1; else hi = mid; }
+      var idx = lo;
       var yr = D.x[idx], price = D.p[idx], risk = D.r[idx];
       var RISK_COLORS = ['#3b1e8f','#2f52d8','#2e8fe0','#28c3c9','#5fd97a','#b4e04a','#f1c40f','#f39c12','#e8552b','#d81f2b'];
       var b = Math.min(9, Math.max(0, Math.floor(risk * 10)));
@@ -4557,6 +4622,13 @@
       rLine.style.display = ''; rLine.style.left = mx + 'px'; rLine.style.height = h + 'px';
     });
     cv.addEventListener('mouseleave', function(){ if (rTip) rTip.style.display = 'none'; if (rLine) rLine.style.display = 'none'; });
+    if (window.LegionZoom) LegionZoom.attach(cv, {
+      plot: function(){ return { l: 52, r: cv.clientWidth - 14 }; },
+      onZoom: function(a, b){ var v = window.LegionCharts.riskView(), pw = cv.clientWidth - 66, f = function(x){ return v[0] + (x - 52) / pw * (v[1] - v[0]); };
+        var z0 = f(a), z1 = f(b); if (z1 - z0 < 0.1) { var m = (z0 + z1) / 2; z0 = m - 0.05; z1 = m + 0.05; }
+        window.LegionCharts.zoomRisk([z0, z1]); },
+      onReset: function(){ window.LegionCharts.zoomRisk(null); }
+    });
   });
 
   /* ROI chart hover */
@@ -4578,7 +4650,8 @@
       var w = rect.width;
       var pad = {l:52, r:16, t:14, b:26}, plotW = w - pad.l - pad.r;
       if (mx < pad.l || mx > w - pad.r) { oTip.style.display = 'none'; oLine.style.display = 'none'; return; }
-      var doy = Math.round((mx - pad.l) / plotW * 365);
+      var rv = window.LegionCharts.roiView();
+      var doy = Math.round(rv[0] + (mx - pad.l) / plotW * (rv[1] - rv[0]));
       doy = Math.max(0, Math.min(365, doy));
       var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       var approx = new Date(Date.UTC(2024, 0, 1 + doy));
@@ -4607,6 +4680,13 @@
       oLine.style.display = ''; oLine.style.left = mx + 'px'; oLine.style.height = rect.height + 'px';
     });
     cv.addEventListener('mouseleave', function(){ if (oTip) oTip.style.display = 'none'; if (oLine) oLine.style.display = 'none'; });
+    if (window.LegionZoom) LegionZoom.attach(cv, {
+      plot: function(){ return { l: 52, r: cv.clientWidth - 16 }; },
+      onZoom: function(a, b){ var v = window.LegionCharts.roiView(), pw = cv.clientWidth - 68, f = function(x){ return v[0] + (x - 52) / pw * (v[1] - v[0]); };
+        var z0 = Math.floor(f(a)), z1 = Math.ceil(f(b)); if (z1 - z0 < 7) { var m = Math.round((z0 + z1) / 2); z0 = Math.max(0, m - 3); z1 = Math.min(365, m + 4); }
+        window.LegionCharts.zoomROI([Math.max(0, z0), Math.min(365, z1)]); },
+      onReset: function(){ window.LegionCharts.zoomROI(null); }
+    });
   });
 
   /* YTD ROI V2 hover */
