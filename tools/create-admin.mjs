@@ -1,11 +1,13 @@
 // Creates (or updates) an owner account with admin rights and an active membership.
 // The password is typed at a hidden prompt, so it never appears on screen, in shell history or in the code.
-// Usage on the server:  sudo legion-admin you@example.com [--name Username]   (sign in with either)
+// Usage on the server:  sudo legion-admin you@example.com [--name Username] [--member]   (sign in with email or name)
+// --member: a regular member with an active membership instead of an admin.
 import crypto from 'node:crypto';
 import { db } from '../src/db.js';
 import { hashPassword } from '../src/auth.js';
 
 const email = String(process.argv[2] || '').trim().toLowerCase();
+const role = process.argv.includes('--member') ? 'member' : 'admin';
 const nameArg = process.argv.indexOf('--name') > 0 ? String(process.argv[process.argv.indexOf('--name') + 1] || '').trim() : '';
 if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { console.error('Usage: legion-admin you@example.com [--name Username]'); process.exit(1); }
 if (nameArg && !/^[\p{L}\p{N}._ -]{2,40}$/u.test(nameArg)) { console.error('Username: 2-40 letters, numbers, spaces, dots, dashes or underscores.'); process.exit(1); }
@@ -49,11 +51,11 @@ if (process.stdin.isTTY && (await askHidden('Repeat password: ')) !== pass) { co
 const now = Math.floor(Date.now() / 1000), periodEnd = now + 10 * 365 * 86400;
 const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
 if (existing) {
-  db.prepare(`UPDATE users SET password_hash = ?, role = 'admin', subscription_status = 'active', current_period_end = ?, name = COALESCE(NULLIF(?, ''), name), updated_at = ? WHERE id = ?`)
-    .run(hashPassword(pass), periodEnd, nameArg, now, existing.id);
-  console.log(`Updated ${email}: admin, active membership, new password set.`);
+  db.prepare(`UPDATE users SET password_hash = ?, role = ?, subscription_status = 'active', current_period_end = ?, name = COALESCE(NULLIF(?, ''), name), updated_at = ? WHERE id = ?`)
+    .run(hashPassword(pass), role, periodEnd, nameArg, now, existing.id);
+  console.log(`Updated ${email}: ${role}, active membership, new password set.`);
 } else {
   db.prepare(`INSERT INTO users (id, email, password_hash, name, role, subscription_status, current_period_end, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?)`).run(crypto.randomUUID(), email, hashPassword(pass), nameArg || email.split('@')[0], periodEnd, now, now);
-  console.log(`Created ${email}: admin, active membership.`);
+    VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)`).run(crypto.randomUUID(), email, hashPassword(pass), nameArg || email.split('@')[0], role, periodEnd, now, now);
+  console.log(`Created ${email}: ${role}, active membership.`);
 }
