@@ -19,9 +19,9 @@
     if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago';
     if (s < 86400) return Math.round(s / 3600) + ' h ago';
     if (s < 30 * 86400) { const d = Math.round(s / 86400); return d + (d === 1 ? ' day ago' : ' days ago'); }
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (s < 365 * 86400) { const m = Math.max(1, Math.floor(s / (30.44 * 86400))); return m + (m === 1 ? ' month ago' : ' months ago'); }
+    const y = Math.floor(s / (365.25 * 86400)); return y + (y === 1 ? ' year ago' : ' years ago');
   }
-  const views = n => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : String(n)) + ' views';
 
   function render() {
     if (!root || !data) return;
@@ -32,7 +32,7 @@
       <div class="yt-card${v.short ? ' short' : ''}" data-id="${esc(v.id)}">
         <a class="yt-thumb" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener noreferrer" data-open="${esc(v.id)}" aria-label="Watch ${esc(v.title)} on YouTube"><img src="https://i.ytimg.com/vi/${esc(v.id)}/hqdefault.jpg" alt="" loading="lazy"><span class="yt-btn">▶</span>${!firstVisit && !seen.has(v.id) ? '<span class="yt-new">NEW</span>' : ''}</a>
         <a class="yt-title" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener noreferrer" data-open="${esc(v.id)}">${esc(v.title)}</a>
-        <div class="yt-meta">${ago(v.published)} · ${views(v.views)}</div>
+        <div class="yt-meta">${ago(v.published)}</div>
       </div>`).join('') : '<div class="yt-empty">No videos yet.</div>';
     root.querySelector('.yt-foot').textContent = `The ${SHOW} latest videos of ${data.channel.name}, newest first · checked ${new Date(checkedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}, refreshes every 5 minutes`;
   }
