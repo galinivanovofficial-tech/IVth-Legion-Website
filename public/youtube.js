@@ -1,4 +1,4 @@
-/* Latest videos from the Galin IVNV YouTube channel on the Overview page: newest first, click to play in place,
+/* Latest videos from the Galin IVNV YouTube channel on the Overview page: newest first, click opens YouTube,
    re-checked every 5 minutes so a new upload appears on its own (marked NEW). */
 (function () {
   'use strict';
@@ -9,7 +9,7 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } },
   };
-  let root = null, data = null, playing = null, timer = null, checkedAt = 0;
+  let root = null, data = null, timer = null, checkedAt = 0;
   // videos seen on an earlier visit; anything else is NEW (first visit: nothing is marked)
   let seen = new Set(store.get('legionYtSeen', []));
   const firstVisit = !store.get('legionYtSeen', null);
@@ -30,10 +30,8 @@
       `<a class="panel-action" href="${esc(data.channel.url)}" target="_blank" rel="noopener noreferrer">Open channel ↗</a>`;
     root.querySelector('.yt-grid').innerHTML = vids.length ? vids.map(v => `
       <div class="yt-card${v.short ? ' short' : ''}" data-id="${esc(v.id)}">
-        <div class="yt-thumb">${playing === v.id
-          ? `<iframe src="https://www.youtube-nocookie.com/embed/${esc(v.id)}?autoplay=1&rel=0" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`
-          : `<button class="yt-play" data-play="${esc(v.id)}" aria-label="Play ${esc(v.title)}"><img src="https://i.ytimg.com/vi/${esc(v.id)}/hqdefault.jpg" alt="" loading="lazy"><span class="yt-btn">▶</span>${!firstVisit && !seen.has(v.id) ? '<span class="yt-new">NEW</span>' : ''}</button>`}</div>
-        <a class="yt-title" href="https://www.youtube.com/${v.short ? 'shorts/' : 'watch?v='}${esc(v.id)}" target="_blank" rel="noopener noreferrer">${esc(v.title)}</a>
+        <a class="yt-thumb" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener noreferrer" data-open="${esc(v.id)}" aria-label="Watch ${esc(v.title)} on YouTube"><img src="https://i.ytimg.com/vi/${esc(v.id)}/hqdefault.jpg" alt="" loading="lazy"><span class="yt-btn">▶</span>${!firstVisit && !seen.has(v.id) ? '<span class="yt-new">NEW</span>' : ''}</a>
+        <a class="yt-title" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener noreferrer" data-open="${esc(v.id)}">${esc(v.title)}</a>
         <div class="yt-meta">${ago(v.published)} · ${views(v.views)}</div>
       </div>`).join('') : '<div class="yt-empty">No videos yet.</div>';
     root.querySelector('.yt-foot').textContent = `The ${SHOW} latest videos of ${data.channel.name}, newest first · checked ${new Date(checkedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}, refreshes every 5 minutes`;
@@ -60,15 +58,15 @@
     root.innerHTML = `<div class="panel-header"><span class="panel-title">▶ Latest Videos — Galin IVNV</span><div class="yt-head-right"></div></div>
       <div class="yt-grid"><div class="yt-empty">Loading videos…</div></div><div class="yt-foot"></div>`;
     root.addEventListener('click', e => {
-      const p = e.target.closest('[data-play]');
-      if (p) { playing = p.dataset.play; seen.add(playing); render(); }
+      const o = e.target.closest('[data-open]'); // opens on YouTube in a new tab; just stop calling it NEW
+      if (o) { seen.add(o.dataset.open); setTimeout(render, 0); }
     });
     load();
     timer = setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
     document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - checkedAt > REFRESH_MS) load(); });
   }
 
-  window.LegionYouTube = { init, reload: load, _state: () => ({ shown: root?.querySelectorAll('.yt-card').length, playing }) };
+  window.LegionYouTube = { init, reload: load, _state: () => ({ shown: root?.querySelectorAll('.yt-card').length }) };
   // start by itself once the page is ready (this script loads after the dashboard's inline code)
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => init('yt-root'));
   else init('yt-root');
