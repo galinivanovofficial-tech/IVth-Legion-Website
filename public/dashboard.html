@@ -1877,7 +1877,9 @@
     .yt-head-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
     .yt-head-right .chart-tab span { opacity:.6; font-size:11px; margin-left:2px; }
     .yt-head-right .panel-action { margin-left:6px; text-decoration:none; }
-    .yt-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap:16px; padding:16px 20px 6px; }
+    .yt-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; padding:16px 20px 6px; }
+    @media (max-width: 1100px) { .yt-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 480px) { .yt-grid { grid-template-columns:1fr; } }
     .yt-card { min-width:0; }
     .yt-thumb { position:relative; aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:#000; border:1px solid var(--border2); }
     .yt-thumb iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
@@ -2934,7 +2936,7 @@
 <script src="data-roi.js?v=20260914b"></script>
 <script src="data-fng.js?v=20260914b"></script>
 <script src="ipo-chart.js?v=3"></script>
-<script src="youtube.js?v=2"></script>
+<script src="youtube.js?v=4"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
 (function(){
