@@ -11,7 +11,6 @@ import { registerOrderflowRoutes, startOrderflow } from './orderflow.js';
 import { registerEducationRoutes, initEducation } from './education.js';
 import { registerTradeRoutes } from './trades.js';
 import { registerMacroRoutes, startMacro } from './macro.js';
-import { registerInsightsRoutes, startInsights } from './insights.js';
 import { startPolling } from './telegram.js';
 import { startJobs } from './jobs.js';
 
@@ -104,7 +103,6 @@ registerOrderflowRoutes(router);
 registerEducationRoutes(router);
 registerTradeRoutes(router);
 registerMacroRoutes(router);
-registerInsightsRoutes(router);
 router.get('/api/health', (req, res) => res.json(200, { ok: true, ...configSummary() }));
 
 // ---------- request dispatch ----------
@@ -147,5 +145,4 @@ server.listen(config.port, () => {
   startOrderflow();
   initEducation();
   startMacro();
-  startInsights();
 });
