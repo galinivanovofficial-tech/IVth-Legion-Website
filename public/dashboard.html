@@ -1872,6 +1872,27 @@
     .ipo-note { font-size:11.5px; line-height:1.55; color:var(--text-muted); margin:12px 0 8px; }
     @media (max-width: 600px) { .ipo-wrap { height:320px; } .ipo-table th, .ipo-table td { padding:6px 5px; } }
       .lz-box { display:none; position:absolute; background:rgba(201,168,76,0.14); border-left:1px solid rgba(201,168,76,0.7); border-right:1px solid rgba(201,168,76,0.7); pointer-events:none; z-index:5; }
+      /* ── Latest YouTube videos ── */
+    .yt-panel { margin-top:20px; }
+    .yt-head-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .yt-head-right .chart-tab span { opacity:.6; font-size:11px; margin-left:2px; }
+    .yt-head-right .panel-action { margin-left:6px; text-decoration:none; }
+    .yt-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap:16px; padding:16px 20px 6px; }
+    .yt-card { min-width:0; }
+    .yt-thumb { position:relative; aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:#000; border:1px solid var(--border2); }
+    .yt-thumb iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+    .yt-play { position:absolute; inset:0; width:100%; height:100%; padding:0; border:0; background:#000; cursor:pointer; }
+    .yt-play img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .25s, opacity .25s; opacity:.92; }
+    .yt-play:hover img { transform:scale(1.04); opacity:1; }
+    .yt-btn { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:52px; height:36px; border-radius:10px; background:rgba(204,0,0,0.9); color:#fff; font-size:16px; display:flex; align-items:center; justify-content:center; }
+    .yt-tag, .yt-new { position:absolute; top:8px; font:700 10px 'Inter',sans-serif; letter-spacing:.05em; border-radius:4px; padding:2px 6px; }
+    .yt-tag { left:8px; background:rgba(0,0,0,0.75); color:#fff; }
+    .yt-new { right:8px; background:var(--gold); color:#111; }
+    .yt-title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:8px; color:var(--text); font-size:13.5px; font-weight:600; line-height:1.35; text-decoration:none; }
+    .yt-title:hover { color:var(--gold-light); }
+    .yt-meta { font-size:11.5px; color:var(--text-muted); margin-top:3px; }
+    .yt-empty { grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted); font-size:13px; }
+    .yt-foot { font-size:11px; color:var(--text-muted); padding:4px 20px 14px; }
   </style>
 </head>
 <body>
@@ -2044,6 +2065,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Latest YouTube videos (Galin IVNV), newest first -->
+      <div class="panel yt-panel" id="yt-root"></div>
     </div>
 
     <!-- ═══ BTC LEVELS SECTION ═══ -->
@@ -2910,6 +2934,7 @@
 <script src="data-roi.js?v=20260914b"></script>
 <script src="data-fng.js?v=20260914b"></script>
 <script src="ipo-chart.js?v=3"></script>
+<script src="youtube.js?v=2"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
 (function(){

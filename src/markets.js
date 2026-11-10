@@ -455,7 +455,31 @@ async function getBtcDaily() {
   });
 }
 
+// ---------- YouTube: latest uploads of the Galin IVNV channel (public RSS feed, no API key, 15 newest) ----------
+const YT_CHANNEL = { id: 'UCsnbRriY3NlDJiYylQOP6zw', handle: '@galin_ivnv', name: 'Galin IVNV' };
+async function getYouTube() {
+  return cached('yt:' + YT_CHANNEL.id, 300, async () => {
+    const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${YT_CHANNEL.id}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`YouTube feed HTTP ${r.status}`);
+    const xml = await r.text();
+    const tag = (e, re) => (e.match(re) || [])[1] || '';
+    const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(([, e]) => ({
+      id: tag(e, /<yt:videoId>([^<]+)/),
+      title: decodeXml(tag(e, /<media:title>([^<]*)/)),
+      published: tag(e, /<published>([^<]+)/),
+      views: Number(tag(e, /views="(\d+)"/)) || 0,
+      short: tag(e, /<link rel="alternate" href="([^"]+)/).includes('/shorts/'),
+    })).filter(v => /^[\w-]{11}$/.test(v.id))
+      .sort((a, b) => b.published.localeCompare(a.published)); // newest first
+    return { channel: { ...YT_CHANNEL, url: `https://www.youtube.com/${YT_CHANNEL.handle}` }, videos };
+  });
+}
+
 export function registerMarketRoutes(router) {
+  router.get('/api/markets/youtube', async (req, res) => {
+    try { res.json(200, await getYouTube()); }
+    catch (e) { console.error('[markets] youtube:', e.message); res.json(502, { error: 'Videos are unavailable right now.' }); }
+  });
   router.get('/api/markets/btc-daily', async (req, res) => {
     try { res.json(200, { days: await getBtcDaily() }); }
     catch (e) { console.error('[markets] btc-daily:', e.message); res.json(502, { error: 'BTC history unavailable' }); }
