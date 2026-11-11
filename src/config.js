@@ -47,7 +47,8 @@ export const config = {
   stripe: {
     secretKey: env.STRIPE_SECRET_KEY || '',
     priceId: env.STRIPE_PRICE_ID || '',                 // monthly price (price_...)
-    priceIdYearly: env.STRIPE_PRICE_ID_YEARLY || '',    // yearly price (price_...)
+    priceIdYearly: env.STRIPE_PRICE_ID_YEARLY || '',    // yearly price (price_...), not offered at the moment
+    priceIdAddon: env.STRIPE_PRICE_ID_ADDON || '',      // +100 EUR/month website add-on (price_...)
     webhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
     get enabled() { return Boolean(this.secretKey && this.priceId); },
   },

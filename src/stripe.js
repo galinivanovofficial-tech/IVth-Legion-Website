@@ -2,7 +2,8 @@
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { Users, Events, Audit, now } from './db.js';
-import { requireAuth, publicUser } from './auth.js';
+import { requireAuth } from './auth.js';
+import { hasRight } from './access.js';
 import { ensureInvite, removeMember } from './telegram.js';
 
 const S = config.stripe;
@@ -46,7 +47,9 @@ async function applySubscription(sub) {
   if (!user && sub.metadata?.uid) user = Users.byId(sub.metadata.uid);
   if (!user) { console.warn('[stripe] no user for subscription', sub.id); return; }
 
+  const addon = Boolean(S.priceIdAddon && (sub.items?.data || []).some(i => i.price?.id === S.priceIdAddon));
   const patch = {
+    stripe_addon: addon ? 1 : 0,
     stripe_customer_id: sub.customer,
     subscription_id: sub.id,
     subscription_status: sub.status,
@@ -59,7 +62,7 @@ async function applySubscription(sub) {
   const active = ['active', 'trialing'].includes(sub.status);
   if (active) {
     await ensureInvite(updated).catch(e => console.error(e.message));
-  } else if (['canceled', 'unpaid'].includes(sub.status)) {
+  } else if (['canceled', 'unpaid'].includes(sub.status) && !hasRight(updated, 'telegram')) { // a code may still cover Telegram
     await removeMember(updated, 'subscription_' + sub.status).catch(e => console.error(e.message));
   }
 }
@@ -78,23 +81,38 @@ export function verifySignature(rawBody, sigHeader, secret) {
 }
 
 export function registerBillingRoutes(router) {
-  // Start a subscription checkout.
+  // Start a subscription checkout. plan: 'telegram' = 89 EUR/month, 'website' = 89 + 100 EUR add-on = 189 EUR/month.
   router.post('/api/billing/checkout', async (req, res) => {
     const user = requireAuth(req, res); if (!user) return;
     if (!S.enabled) return res.json(503, { error: 'Payments are not configured yet.' });
-    if (['active', 'trialing'].includes(user.subscription_status)) return res.json(400, { error: 'You already have an active membership.' });
-    const plan = req.body?.plan === 'yearly' ? 'yearly' : 'monthly';
-    const priceId = plan === 'yearly' ? (S.priceIdYearly || S.priceId) : S.priceId;
+    const plan = req.body?.plan === 'website' ? 'website' : 'telegram';
+    if (plan === 'website' && !S.priceIdAddon) return res.json(503, { error: 'The website plan is not available yet.' });
+    const subscribed = user.subscription_id && ['active', 'trialing', 'past_due'].includes(user.subscription_status);
+    if (subscribed) {
+      if (plan === 'telegram' || user.stripe_addon) return res.json(400, { error: 'You already have this plan.' });
+      // Already paying 89: add the website add-on to the same subscription (Stripe prorates the first month).
+      try {
+        await api('POST', 'subscription_items', { subscription: user.subscription_id, price: S.priceIdAddon, quantity: 1, proration_behavior: 'always_invoice' });
+        await applySubscription(await api('GET', `subscriptions/${user.subscription_id}`));
+        Audit.log(user.id, 'addon_added');
+        return res.json(200, { url: `${config.baseUrl}/dashboard.html?upgraded=1` });
+      } catch (e) {
+        console.error('[stripe] add-on:', e.message);
+        return res.json(500, { error: 'Could not add the website plan. Please try again.' });
+      }
+    }
+    const items = [{ price: S.priceId, quantity: 1 }];
+    if (plan === 'website') items.push({ price: S.priceIdAddon, quantity: 1 });
     try {
       const customer = await ensureCustomer(user);
       const session = await api('POST', 'checkout/sessions', {
         mode: 'subscription',
         customer,
-        line_items: [{ price: priceId, quantity: 1 }],
+        line_items: items,
         allow_promotion_codes: true,
         client_reference_id: user.id,
         subscription_data: { metadata: { uid: user.id } },
-        success_url: `${config.baseUrl}/dashboard.html?checkout=success`,
+        success_url: `${config.baseUrl}/${plan === 'website' ? 'dashboard' : 'subscribe'}.html?checkout=success`,
         cancel_url: `${config.baseUrl}/subscribe.html?checkout=cancelled`,
       });
       res.json(200, { url: session.url });

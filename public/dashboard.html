@@ -1952,7 +1952,7 @@
     <a class="nav-item" onclick="showSection('calendar')" href="#">
       <span class="nav-item-icon">🗓</span> Calendars
     </a>
-    <a class="nav-item" onclick="showSection('education')" href="#">
+    <a class="nav-item" id="nav-education" onclick="showSection('education')" href="#">
       <span class="nav-item-icon">🎓</span> Education
     </a>
 
@@ -2580,18 +2580,26 @@
         <div>
           <div class="panel" style="margin-bottom:20px;">
             <div class="panel-header">
-              <span class="panel-title">💳 Subscription</span>
+              <span class="panel-title">💳 Access &amp; Subscription</span>
             </div>
             <div class="panel-body">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border2);">
                 <div>
-                  <div style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);">Legion Membership</div>
-                  <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">€79.00 / month</div>
+                  <div id="acc-plan" style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);">Legion Membership</div>
+                  <div id="acc-price" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
                 </div>
                 <div id="acc-status" style="background:rgba(38,166,91,0.15);color:var(--green);font-size:11px;padding:4px 12px;letter-spacing:0.1em;">ACTIVE</div>
               </div>
-              <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Next billing: <span id="acc-renew" style="color:var(--text);">—</span></div>
-              <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Billing managed securely by <span style="color:var(--text);">Stripe</span></div>
+              <div id="acc-rights" style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin-bottom:16px;"></div>
+              <div id="acc-billing">
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Next billing: <span id="acc-renew" style="color:var(--text);">—</span></div>
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Billing managed securely by <span style="color:var(--text);">Stripe</span></div>
+              </div>
+              <form id="acc-redeem" style="display:flex;gap:8px;margin-bottom:16px;" onsubmit="return false;">
+                <input id="acc-code" autocomplete="off" spellcheck="false" placeholder="Access code" style="flex:1;min-width:0;background:var(--dark3);border:1px solid var(--border);color:var(--text);padding:9px 12px;font:600 12.5px ui-monospace,Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;">
+                <button id="acc-code-btn" style="background:none;border:1px solid var(--gold);color:var(--gold);padding:9px 16px;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;">Redeem</button>
+              </form>
+              <div id="acc-code-msg" style="font-size:12.5px;margin:-8px 0 14px;display:none;"></div>
               <button id="acc-manage" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 20px;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;width:100%;transition:all 0.2s;margin-bottom:10px;">Manage / Update Card</button>
               <button id="acc-cancel" style="background:none;border:1px solid rgba(231,76,60,0.4);color:var(--red);padding:10px 20px;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;width:100%;transition:all 0.2s;" onmouseover="this.style.background='rgba(231,76,60,0.1)'" onmouseout="this.style.background='none'">Cancel Subscription</button>
             </div>
@@ -4876,6 +4884,27 @@
       if (invite) a.href = invite;
       a.target = '_blank'; a.rel = 'noopener';
     });
+
+    // Access: which rights this account has and until when
+    const A = user.access || {}, nowS = Date.now() / 1000;
+    if (!(A.education > nowS)) { const ne = document.getElementById('nav-education'); if (ne) ne.style.display = 'none'; }
+    const label = (user.plans || []).map(p => p.label).filter((v, i, a) => a.indexOf(v) === i);
+    const planEl = document.getElementById('acc-plan'); if (planEl) planEl.textContent = label.length ? label.map(l => l === 'stripe' ? (user.stripe_addon ? 'Telegram + Website' : 'Telegram') : l === 'manual' ? 'Legion Membership' : l === 'admin' ? 'Owner' : l).join(' · ') : 'No active plan';
+    const priceEl = document.getElementById('acc-price'); if (priceEl) priceEl.textContent = user.has_subscription ? (user.stripe_addon ? '€189 / month (€89 + €100 website add-on)' : '€89 / month') : '';
+    const rightsEl = document.getElementById('acc-rights');
+    if (rightsEl) rightsEl.innerHTML = [['Telegram', A.telegram], ['Website', A.website], ['Academy', A.education]].map(([n, u]) =>
+      '<span style="color:var(--text-muted)">' + n + '</span><span style="color:' + (u > nowS ? 'var(--green)' : 'var(--text-muted)') + '">' +
+      (u > nowS ? (u > 4e9 ? 'included' : 'until ' + fmtDate(u)) : 'not included') + '</span>').join('');
+    if (!user.has_subscription) { const b = document.getElementById('acc-billing'); if (b) b.style.display = 'none'; ['acc-manage','acc-cancel'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; }); }
+    const codeBtn = document.getElementById('acc-code-btn');
+    if (codeBtn) codeBtn.onclick = async () => {
+      const inp = document.getElementById('acc-code'), msg = document.getElementById('acc-code-msg');
+      if (!inp.value.trim()) return;
+      codeBtn.disabled = true;
+      try { const r = await Legion.redeem(inp.value.trim()); msg.style.color = 'var(--green)'; msg.textContent = r.label + ' code accepted: access until ' + fmtDate(r.ends_at) + '. Reloading…'; setTimeout(() => location.reload(), 1300); }
+      catch (e) { msg.style.color = 'var(--red)'; msg.textContent = e.message; codeBtn.disabled = false; }
+      msg.style.display = 'block';
+    };
 
     // Billing state
     const status = user.subscription_status;

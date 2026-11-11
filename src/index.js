@@ -14,6 +14,7 @@ import { registerMacroRoutes, startMacro } from './macro.js';
 import { startPolling } from './telegram.js';
 import { startJobs } from './jobs.js';
 import { registerDataFileRoutes } from './data-refresh.js';
+import { registerAccessRoutes } from './access.js';
 
 // ---------- tiny router ----------
 const routes = [];
@@ -105,6 +106,7 @@ registerEducationRoutes(router);
 registerTradeRoutes(router);
 registerMacroRoutes(router);
 registerDataFileRoutes(router);
+registerAccessRoutes(router);
 router.get('/api/health', (req, res) => res.json(200, { ok: true, ...configSummary() }));
 
 // ---------- request dispatch ----------

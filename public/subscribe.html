@@ -42,6 +42,7 @@
     .msg{display:none;text-align:center;font-size:13.5px;padding:14px 18px;margin:0 auto 30px;max-width:640px;border-radius:12px;border:1px solid}
     .msg.err{color:#ff9d94;border-color:rgba(231,76,60,.35);background:rgba(231,76,60,.07)}
     .msg.info{color:#8fd8f0;border-color:rgba(34,158,217,.3);background:rgba(34,158,217,.07)}
+    .msg.ok{color:#8be0a8;border-color:rgba(38,166,91,.35);background:rgba(38,166,91,.08)}
 
     .plans{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
     @media(max-width:760px){.plans{grid-template-columns:1fr}}
@@ -58,6 +59,16 @@
     .plan-price .per{font-size:13px;color:var(--dim)}
     .plan-note{font-size:12.5px;color:var(--muted);margin-top:8px}
     .plan-note b{color:var(--green);font-weight:600}
+    .plan-list{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--muted)}
+    .plan-list li::before{content:'\2726';color:var(--gold);margin-right:9px;font-size:11px}
+    .state{border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 22px;font-size:14px;line-height:1.6;background:rgba(255,255,255,.02)}
+    .state b{color:var(--gold2)} .state a{color:var(--gold)}
+    .redeem{margin:28px 0 8px;border:1px solid var(--line);border-radius:18px;padding:22px 24px;background:linear-gradient(180deg,var(--panel2),var(--panel))}
+    .redeem h3{font-family:'Cinzel',serif;font-size:15px;letter-spacing:.08em;margin:0 0 6px}
+    .redeem p{font-size:13px;color:var(--muted);margin:0 0 14px}
+    .redeem-row{display:flex;gap:10px;flex-wrap:wrap}
+    .redeem-row input{flex:1;min-width:220px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:inherit;font:600 15px ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase}
+    .btn-ghost{width:auto!important;padding:12px 22px!important}
 
     .benefits{margin:40px auto 0;max-width:640px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,var(--panel2),var(--panel));padding:28px 32px}
     .benefits h3{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold2);margin-bottom:16px;text-align:center}
@@ -213,38 +224,38 @@ m54 1 c2 -1 2 -23 2 -387 0 -212 1 -387 1 -388 2 -5 -7 -9 -13 -6 -2 1 -2 778
 
   <div id="content" style="display:none">
     <p class="eyebrow">Final Step</p>
-    <h1>Choose Your <em>Commitment.</em></h1>
-    <p class="sub" id="greeting">Same access either way — instant Telegram invite, full war room, everything.</p>
+    <h1>Choose Your <em>Access.</em></h1>
+    <p class="sub" id="greeting">Telegram only, or Telegram plus the full war-room website.</p>
 
     <div id="msg" class="msg"></div>
+    <div id="state" class="state" style="display:none"></div>
 
     <div class="plans">
-      <div class="plan" id="card-monthly" onclick="setPlan('monthly')" role="radio" aria-checked="false" tabindex="0">
+      <div class="plan" id="card-telegram" onclick="setPlan('telegram')" role="radio" aria-checked="false" tabindex="0">
         <div class="plan-radio"></div>
-        <div class="plan-name">Monthly</div>
+        <div class="plan-name">Telegram</div>
         <div class="plan-price"><span class="cur">&euro;</span><span class="amt">89</span><span class="per">/ month</span></div>
-        <div class="plan-note">Cancel anytime &middot; no commitment</div>
+        <div class="plan-note">Private Telegram group &middot; cancel anytime</div>
+        <ul class="plan-list"><li>Private Telegram, instant invite</li><li>Real-time signals &amp; trade plans</li><li>Daily macro briefings</li></ul>
       </div>
 
-      <div class="plan selected" id="card-yearly" onclick="setPlan('yearly')" role="radio" aria-checked="true" tabindex="0">
-        <div class="plan-flag">Best Value &middot; Save &euro;269</div>
+      <div class="plan selected" id="card-website" onclick="setPlan('website')" role="radio" aria-checked="true" tabindex="0">
+        <div class="plan-flag">Full Access</div>
         <div class="plan-radio"></div>
-        <div class="plan-name">Yearly</div>
-        <div class="plan-price"><span class="cur">&euro;</span><span class="amt">799</span><span class="per">/ year</span></div>
-        <div class="plan-note">&asymp; &euro;66.58 / month &middot; <b>3 months free</b></div>
+        <div class="plan-name">Telegram + Website</div>
+        <div class="plan-price"><span class="cur">&euro;</span><span class="amt">189</span><span class="per">/ month</span></div>
+        <div class="plan-note">&euro;89 Telegram + &euro;100 website add-on &middot; cancel anytime</div>
+        <ul class="plan-list"><li>Everything in Telegram</li><li>Live war-room dashboard &amp; charts</li><li>Trade Tracker &amp; Order Flow</li><li>Macro hub &amp; calendars</li></ul>
       </div>
     </div>
 
-    <div class="benefits">
-      <h3>Every plan includes</h3>
-      <ul>
-        <li><span class="tick">&#10022;</span>Private Telegram — instant invite</li>
-        <li><span class="tick">&#10022;</span>Real-time signals &amp; trade plans</li>
-        <li><span class="tick">&#10022;</span>Live war-room dashboard</li>
-        <li><span class="tick">&#10022;</span>Daily macro briefings</li>
-        <li><span class="tick">&#10022;</span>Weekly video analysis</li>
-        <li><span class="tick">&#10022;</span>Full education library</li>
-      </ul>
+    <div class="redeem">
+      <h3>Have an access code?</h3>
+      <p>VIP and IVth Legion member codes unlock access instantly. Each code works once, for one account.</p>
+      <form id="redeemForm" class="redeem-row" onsubmit="redeem(event)">
+        <input id="code" autocomplete="off" spellcheck="false" placeholder="LEGION-XXXX-XXXX-XXXX" maxlength="40" aria-label="Access code">
+        <button class="btn btn-ghost" id="redeemBtn">Redeem</button>
+      </form>
     </div>
 
     <div class="cta-zone">
@@ -261,16 +272,17 @@ m54 1 c2 -1 2 -23 2 -387 0 -212 1 -387 1 -388 2 -5 -7 -9 -13 -6 -2 1 -2 778
 <script>
   function showMsg(kind,text){const m=document.getElementById('msg');m.className='msg '+kind;m.textContent=text;m.style.display='block'}
 
-  let plan='yearly';
+  let plan='website';
+  const PRICE={telegram:'€89 / month',website:'€189 / month'};
   function setPlan(p){
     plan=p;
-    ['monthly','yearly'].forEach(x=>{
+    ['telegram','website'].forEach(x=>{
       const c=document.getElementById('card-'+x);
       c.classList.toggle('selected',x===p);
       c.setAttribute('aria-checked',x===p?'true':'false');
     });
     const btn=document.getElementById('subscribe');
-    if(!btn.disabled) btn.textContent = p==='yearly' ? 'Continue to Secure Checkout — €799 / year →' : 'Continue to Secure Checkout — €89 / month →';
+    if(!btn.disabled) btn.textContent='Continue to Secure Checkout — '+PRICE[p]+' →';
   }
 
   async function subscribe(){
@@ -280,6 +292,21 @@ m54 1 c2 -1 2 -23 2 -387 0 -212 1 -387 1 -388 2 -5 -7 -9 -13 -6 -2 1 -2 778
     catch(err){showMsg('err',err.message);btn.disabled=false;setPlan(plan)}
   }
 
+  async function redeem(e){
+    e.preventDefault();
+    const btn=document.getElementById('redeemBtn'), code=document.getElementById('code').value.trim();
+    if(!code) return;
+    btn.disabled=true;btn.textContent='Checking…';
+    try{
+      const r=await Legion.redeem(code);
+      showMsg('ok',r.label+' code accepted: access until '+fmt(r.ends_at)+'.');
+      setTimeout(()=>{location.href=r.user.hasAccess?'dashboard.html':'subscribe.html'},1200);
+    }catch(err){showMsg('err',err.message);btn.disabled=false;btn.textContent='Redeem'}
+  }
+
+  const fmt=s=>new Date(s*1000).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
   (async function(){
     const params=new URLSearchParams(location.search);
     let user;
@@ -287,16 +314,29 @@ m54 1 c2 -1 2 -23 2 -387 0 -212 1 -387 1 -388 2 -5 -7 -9 -13 -6 -2 1 -2 778
     if(!user){location.href='index.html';return}
     if(user.hasAccess){location.href='dashboard.html';return}
 
-    // preselect plan: URL param first, then landing-page choice
     let pre=params.get('plan');
     if(!pre){try{pre=sessionStorage.getItem('legion_plan')}catch{}}
-    setPlan(pre==='monthly'?'monthly':'yearly');
+    setPlan(pre==='telegram'?'telegram':'website');
+
+    // What this account has now: Telegram-only members, or website access that has ended.
+    const st=document.getElementById('state'), a=user.access||{}, now=Date.now()/1000, lines=[];
+    if(a.telegram>now){
+      lines.push('<b>Telegram access active</b> until '+fmt(a.telegram)+'.'+(user.invite_link?' <a href="'+esc(user.invite_link)+'" target="_blank" rel="noopener">Open your private invite link →</a>':''));
+      lines.push('Your plan does not include the website. Add the website for €100 / month below, or redeem a code.');
+    }
+    if(user.hadAccess && !(a.website>now)){
+      lines.push('<b>Your website access has ended.</b> Your Trade Tracker history is saved and comes back as soon as you renew or redeem a new code.');
+    }
+    if(lines.length){st.innerHTML=lines.join('<br>');st.style.display='block'}
+    if(a.telegram>now){document.getElementById('card-telegram').style.display='none';setPlan('website');
+      document.querySelector('#card-website .plan-note').innerHTML='Adds the €100 website add-on to your current plan';}
 
     document.getElementById('loading').style.display='none';
     document.getElementById('content').style.display='block';
     document.getElementById('logout').style.display='inline';
-    document.getElementById('greeting').textContent=(user.name?user.name.split(' ')[0]+', y':'Y')+'ou’re one step from the Legion.';
+    if(!lines.length) document.getElementById('greeting').textContent=(user.name?user.name.split(' ')[0]+', y':'Y')+'ou’re one step from the Legion.';
     if(params.get('checkout')==='cancelled')showMsg('info','Checkout cancelled — no charge was made. Subscribe whenever you’re ready.');
+    if(params.get('checkout')==='success')showMsg('ok','Payment received. Your Telegram invite is ready above.');
   })();
 </script>
 </body>

@@ -8,7 +8,8 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { db, now } from './db.js';
-import { requireAuth, publicUser } from './auth.js';
+import { requireAuth } from './auth.js';
+import { requireRight } from './access.js';
 
 const COURSES = [
   { id: 'tech', docId: '1yLj0bF9J44-7NfLQgPMXSbuY73MUNUEW', icon: '📈', title: 'From Zero to God-Level Trader', subtitle: 'Technical mastery — structure, candles, patterns, indicators, confluence & risk' },
@@ -345,12 +346,8 @@ async function getCourse(id) {
 
 // ---------- routes ----------
 const isAdmin = u => u.role === 'admin' || (config.adminEmail && u.email.toLowerCase() === config.adminEmail);
-function requireMember(req, res) {
-  const user = requireAuth(req, res);
-  if (!user) return null;
-  if (!publicUser(user).hasAccess && !isAdmin(user)) { res.json(403, { error: 'An active membership is required for the Academy.' }); return null; }
-  return user;
-}
+// The Academy (course) needs the education right: VIP code or admin.
+const requireMember = (req, res) => requireRight(req, res, 'education');
 function sendJSON(req, res, obj) {
   const body = JSON.stringify(obj);
   const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');

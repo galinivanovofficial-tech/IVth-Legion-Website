@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { Users, Audit } from './db.js';
+import { accessOf, PLANS } from './access.js';
 
 const COOKIE = 'legion_session';
 
@@ -96,9 +97,7 @@ const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // ---- Public shape of a user (never leak the hash) ----
 export function publicUser(u) {
   if (!u) return null;
-  const active = ['active', 'trialing'].includes(u.subscription_status);
-  const graceCutoff = Math.floor(Date.now() / 1000) - config.graceDays * 86400;
-  const inGrace = u.subscription_status === 'past_due' && u.current_period_end > graceCutoff;
+  const a = accessOf(u), t = Math.floor(Date.now() / 1000);
   return {
     id: u.id,
     email: u.email,
@@ -109,8 +108,14 @@ export function publicUser(u) {
     subscription_status: u.subscription_status,
     current_period_end: u.current_period_end,
     cancel_at_period_end: !!u.cancel_at_period_end,
-    hasAccess: active || inGrace,
-    invite_link: (active || inGrace) ? u.invite_link : '',
+    has_subscription: !!u.subscription_id,
+    stripe_addon: !!u.stripe_addon,
+    // rights: unix time each one is valid until (0 = none). hasAccess = may open the website dashboard.
+    access: { telegram: a.telegram, website: a.website, education: a.education },
+    plans: a.sources.map(s => ({ source: s.source, label: PLANS[s.source]?.label || s.source, until: s.until })),
+    hadAccess: a.hadAccess,
+    hasAccess: a.website > t,
+    invite_link: a.telegram > t ? u.invite_link : '',
   };
 }
 

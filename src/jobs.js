@@ -1,16 +1,16 @@
 // Background jobs (zero dependency scheduler).
 import { config } from './config.js';
-import { Users, now } from './db.js';
+import { Users } from './db.js';
+import { hasRight } from './access.js';
 import { removeMember } from './telegram.js';
 import { refreshData } from './data-refresh.js';
 
-// Revoke Telegram access for members whose subscription lapsed beyond the grace period.
+// Remove from the Telegram group everyone whose telegram right has ended (code expired, Stripe lapsed past grace).
 export async function syncAccess() {
   if (!config.telegram.enabled) return;
-  const graceCutoff = now() - config.graceDays * 86400;
-  const lapsed = Users.lapsedInGroup(graceCutoff);
+  const lapsed = Users.inGroup().filter(u => !hasRight(u, 'telegram'));
   for (const user of lapsed) {
-    await removeMember(user, 'grace_period_ended').catch(e => console.error('[jobs]', e.message));
+    await removeMember(user, 'access_ended').catch(e => console.error('[jobs]', e.message));
   }
   if (lapsed.length) console.log(`[jobs] revoked ${lapsed.length} lapsed member(s)`);
 }
