@@ -419,41 +419,41 @@
     }
 
     /* ── ACT 4: THE LEGION (PEAK) — DEVICE: REVEAL ── */
-    .warroom {
+    .dash-showcase {
       padding: var(--sc-section) 0; position: relative;
       overflow: hidden;
       background: linear-gradient(180deg, var(--sc-canvas) 0%, var(--sc-surface) 10%, var(--sc-surface) 90%, var(--sc-canvas) 100%);
     }
-    .warroom::before {
+    .dash-showcase::before {
       content: ''; position: absolute; inset: 0;
       background: radial-gradient(ellipse at 70% 40%, rgba(201,168,76,0.06) 0%, transparent 55%);
       pointer-events: none;
     }
-    .warroom::after {
+    .dash-showcase::after {
       content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
       background: linear-gradient(90deg, transparent, rgba(201,168,76,0.15), transparent);
     }
-    .warroom-layout {
+    .dash-showcase-layout {
       display: grid; grid-template-columns: 1fr 1.1fr;
       gap: 64px; align-items: center;
     }
-    .warroom-text { position: relative; z-index: 2; }
-    .warroom-text h2 {
+    .dash-showcase-text { position: relative; z-index: 2; }
+    .dash-showcase-text h2 {
       font-size: clamp(1.8rem, 3vw, 2.4rem); line-height: 1.15; margin-bottom: 20px;
     }
-    .warroom-text > p {
+    .dash-showcase-text > p {
       color: var(--sc-ink-soft); line-height: 1.8; margin-bottom: 36px; font-size: 14.5px;
     }
-    .warroom-list { list-style: none; }
-    .warroom-list li {
+    .dash-showcase-list { list-style: none; }
+    .dash-showcase-list li {
       padding: 12px 0; font-size: 14px; color: var(--sc-ink-soft);
       display: flex; align-items: center; gap: 14px;
       transition: color 0.2s, transform 0.3s var(--sc-ease-out);
     }
-    .warroom-list li:hover { color: var(--sc-ink); transform: translateX(6px); }
-    .warroom-list .icon { font-size: 18px; flex-shrink: 0; }
+    .dash-showcase-list li:hover { color: var(--sc-ink); transform: translateX(6px); }
+    .dash-showcase-list .icon { font-size: 18px; flex-shrink: 0; }
 
-    .warroom-visual {
+    .dash-showcase-visual {
       background: rgba(10,10,22,0.8); border: 1px solid rgba(201,168,76,0.12);
       border-radius: var(--sc-radius-lg); padding: 24px;
       display: flex; flex-direction: column; gap: 14px;
@@ -462,10 +462,10 @@
       transition: opacity 1s var(--sc-ease-out), transform 1s var(--sc-ease-out);
       box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 80px rgba(201,168,76,0.04);
     }
-    .warroom-visual.revealed {
+    .dash-showcase-visual.revealed {
       opacity: 1; transform: none;
     }
-    .warroom-visual::after {
+    .dash-showcase-visual::after {
       content: ''; position: absolute; inset: 0; border-radius: var(--sc-radius-lg);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
       pointer-events: none;
@@ -752,14 +752,14 @@
       *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.15s !important; }
       .grain, #neuroCanvas, .scroll-progress { display: none !important; }
       .hero-logo-wrap, .hero-sub, .hero-actions, .hero-edge,
-      .hero-line-inner, .sc-reveal, .feature-card, .warroom-visual, .quiet-beat blockquote { opacity: 1 !important; transform: none !important; }
+      .hero-line-inner, .sc-reveal, .feature-card, .dash-showcase-visual, .quiet-beat blockquote { opacity: 1 !important; transform: none !important; }
     }
 
     /* ── RESPONSIVE ── */
     @media (max-width: 900px) {
       .features-grid { grid-template-columns: 1fr 1fr; }
       .pricing-grid { grid-template-columns: 1fr; max-width: 420px; }
-      .warroom-layout { grid-template-columns: 1fr; gap: 40px; }
+      .dash-showcase-layout { grid-template-columns: 1fr; gap: 40px; }
       .hero-edge { gap: 24px; }
       .footer-inner { flex-direction: column; }
       .proof-grid { grid-template-columns: 1fr; gap: 32px; }
@@ -779,7 +779,7 @@
       .hero h1 { font-size: 2rem; }
       .hero-logo-img { height: 100px; }
       .modal { padding: 36px 24px; }
-      .warroom-layout { padding: 0; }
+      .dash-showcase-layout { padding: 0; }
       .disclaimer-box { padding: 28px; }
       .footer-links { flex-direction: column; gap: 28px; }
       .ticker-bar { display: none; }
@@ -924,15 +924,15 @@
   </div>
 </section>
 
-<!-- ═══════════════ ACT 4: WAR ROOM (PEAK) — REVEAL ═══════════════ -->
-<section class="warroom" id="legion">
+<!-- ═══════════════ ACT 4: DASHBOARD (PEAK) — REVEAL ═══════════════ -->
+<section class="dash-showcase" id="legion">
   <div class="container">
-    <div class="warroom-layout">
-      <div class="warroom-text sc-reveal">
+    <div class="dash-showcase-layout">
+      <div class="dash-showcase-text sc-reveal">
         <div class="section-eyebrow">The Legion Dashboard</div>
         <h2>One Screen. Every Edge.</h2>
         <p>Not a generic watchlist. A purpose-built command center with the exact data feeds, models, and calendars we trade from every single day.</p>
-        <ul class="warroom-list">
+        <ul class="dash-showcase-list">
           <li><span class="icon">&#x1F30D;</span> Crypto, stocks, commodities, nuclear &mdash; all live</li>
           <li><span class="icon">&#x1F4CA;</span> BTC Risk Metric &amp; cycle positioning at a glance</li>
           <li><span class="icon">&#x1F4C5;</span> Earnings calendar with pre/post-market flags</li>
@@ -941,7 +941,7 @@
           <li><span class="icon">&#x26A1;</span> Derivatives: OI, funding, liquidations, max pain</li>
         </ul>
       </div>
-      <div class="warroom-visual" id="warVisual">
+      <div class="dash-showcase-visual" id="dashVisual">
         <div class="risk-gauge-panel">
           <div class="risk-gauge-title">BTC CYCLE RISK</div>
           <div class="risk-gauge-bar">
@@ -1229,9 +1229,9 @@ window.addEventListener('scroll', () => {
   }, { threshold: 0.3 }).observe(bq);
 })();
 
-// ── WAR ROOM REVEAL (PEAK) ──
+// ── DASHBOARD REVEAL (PEAK) ──
 (function() {
-  var vis = document.getElementById('warVisual');
+  var vis = document.getElementById('dashVisual');
   if (!vis) return;
   new IntersectionObserver(function(entries) {
     if (entries[0].isIntersecting) {
