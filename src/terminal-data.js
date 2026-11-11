@@ -7,11 +7,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { config } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(__dirname, '..', 'public', 'onchain-terminal.js');
+const OUT = path.join(config.dataDir, 'charts', 'onchain-terminal.js');
 const HISTORY = path.join(__dirname, 'cdd-history.json');
-const CACHE = path.join(__dirname, '..', 'data', 'cdd-cache.json');
+const CACHE = path.join(config.dataDir, 'cdd-cache.json');
 const GENESIS = Date.UTC(2009, 0, 3), DAY = 864e5;
 
 async function getJSON(url) {

@@ -2,9 +2,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTerminal } from './terminal-data.js';
+import { config } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(__dirname, '..', 'public');
+// Generated chart data goes to the writable data dir (in production public/ is read-only inside the image).
+// The routes below serve the fresh copy and fall back to the one baked into public/.
+export const OUT = path.join(config.dataDir, 'charts');
+export const DATA_FILES = ['data-risk.js', 'data-roi.js', 'data-fng.js', 'onchain-terminal.js'];
+const PUBLIC = path.join(__dirname, '..', 'public');
+
+export function registerDataFileRoutes(router) {
+  for (const f of DATA_FILES) {
+    router.get('/' + f, (req, res) => {
+      const fresh = path.join(OUT, f);
+      const file = fs.existsSync(fresh) ? fresh : path.join(PUBLIC, f);
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=600' });
+      fs.createReadStream(file).pipe(res);
+    });
+  }
+}
 
 async function fetchJSON(url) {
   const r = await fetch(url);
@@ -125,6 +141,7 @@ async function buildFNG(priceRows) {
 }
 
 export async function refreshData() {
+  fs.mkdirSync(OUT, { recursive: true });
   console.log('[data] Fetching BTC daily data from Bitstamp...');
   const rows = await fetchAllBitstamp();
   console.log(`[data] Got ${rows.length} bars (${new Date(rows[0].ts * 1000).toISOString().slice(0, 10)} → ${new Date(rows[rows.length - 1].ts * 1000).toISOString().slice(0, 10)})`);
