@@ -20,6 +20,7 @@
   ];
 
   const opt = Object.assign({ before: 300, after: 30, base: 'start', ant: '2026-11-18', oai: '', refs: false, hidden: [] }, store.get('legionIpo', {}));
+  opt.base = 'start'; // every visit starts with 0% at the start of the chart
   if (!ANT_DATES.includes(opt.ant)) opt.ant = '2026-11-18';
   const save = () => store.set('legionIpo', opt);
 
@@ -83,7 +84,7 @@
     root.querySelector('.ipo-ctl').innerHTML = `
       <div class="ipo-row"><span class="ipo-lbl">Days before IPO</span>${[300, 90, 30].map(v => chip('before', v, v + 'd', opt.before === v)).join('')}
         <span class="ipo-lbl">After</span>${[0, 30, 90].map(v => chip('after', v, v ? '+' + v + 'd' : 'none', opt.after === v)).join('')}
-        <span class="ipo-lbl">0% line at</span>${[['start', 'Window start'], ['d30', 'D−30'], ['ipo', 'IPO day']].map(([v, l]) => chip('base', v, l, opt.base === v)).join('')}</div>
+        <span class="ipo-lbl">0% line at</span>${[['start', 'Start of chart'], ['d30', 'D−30'], ['ipo', 'IPO day']].map(([v, l]) => chip('base', v, l, opt.base === v)).join('')}</div>
       <div class="ipo-row">
         <label class="ipo-lbl" for="ipoAnt">Anthropic IPO day</label>
         <select id="ipoAnt" class="ipo-input">${ANT_DATES.map(d => `<option value="${d}"${d === opt.ant ? ' selected' : ''}>${new Date(toDay(d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}${d === '2026-11-18' ? ' (default)' : ''}</option>`).join('')}</select>
@@ -120,7 +121,7 @@
   function draw() {
     if (!canvas || !data) return;
     plotted = IPOS.filter(i => (!i.ref || opt.refs)).map(series).filter(Boolean);
-    const shown = plotted.filter(s => s.pts.length && !opt.hidden.includes(s.ipo.id));
+    let shown = plotted.filter(s => s.pts.length && !opt.hidden.includes(s.ipo.id));
     const W = canvas.clientWidth, H = canvas.clientHeight, dpr = window.devicePixelRatio || 1;
     if (!W || !H) return;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -128,6 +129,9 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     const L = 8, R = 58, T = 14, B = 28, pw = W - L - R, ph = H - T - B;
     const k0 = zoom ? zoom[0] : -opt.before, k1 = zoom ? zoom[1] : opt.after;
+    // 0% = the first day in view, so a zoomed-in chart also starts from 0%
+    if (opt.base === 'start' && zoom) shown = shown.map(s => { const f = s.pts.find(p => p.k >= k0);
+      return f ? { ...s, pts: s.pts.map(p => ({ ...p, pct: (p.v / f.v - 1) * 100 })) } : s; });
     let lo = zoom ? Infinity : 0, hi = zoom ? -Infinity : 0;
     for (const s of shown) for (const p of s.pts) if (p.k >= k0 && p.k <= k1) { lo = Math.min(lo, p.pct); hi = Math.max(hi, p.pct); }
     if (lo === Infinity) { lo = -1; hi = 1; }
