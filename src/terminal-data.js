@@ -3,7 +3,7 @@
 //   Transferred = Σ(CDD × price) / (supply × days since genesis)
 //   Terminal    = 21 × Transferred,  Balanced = Realized − Transferred
 // CDD: src/cdd-history.json (committed: daily CDD from 2010, reconstructed from ITC anchors before `reconTo`, measured after) + the last 4 years from
-// BGeometrics (free, 10 requests/hour; the job runs every 8h), cached in data/cdd-cache.json so a failed fetch keeps the last good copy.
+// BGeometrics (free, 10 requests/hour; the job runs every 12h), cached in data/cdd-cache.json so a failed fetch keeps the last good copy.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
