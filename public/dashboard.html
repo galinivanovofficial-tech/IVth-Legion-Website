@@ -2222,6 +2222,27 @@
         <button class="chart-tab" onclick="switchChartTab('ytdROI', this)">Year-to-Date ROI</button>
         <button class="chart-tab" onclick="switchChartTab('fng', this)">Fear & Greed</button>
         <button class="chart-tab" onclick="switchChartTab('ipo', this)">BTC vs Mega IPOs</button>
+        <button class="chart-tab" onclick="switchChartTab('terminal', this)">Terminal Price</button>
+      </div>
+
+      <!-- ── Bitcoin Terminal Price ── -->
+      <div class="chart-sub" id="chartSub-terminal" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🎯 Bitcoin Terminal Price</span>
+            <span class="panel-badge">Daily · Log</span>
+          </div>
+          <div id="tp-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> BTC price (blue) against three on-chain value models.
+            <strong style="color:#4caf50;">Realized Price</strong> is the average price at which every coin last moved, i.e. the market's average cost basis.
+            <strong style="color:#ef5350;">Terminal Price</strong> is 21 × the Transferred Price (the dollar value of all coin-days destroyed since 2009, divided by supply × Bitcoin's age in days); it has marked every cycle top.
+            <strong style="color:#ff9f43;">Balanced Price</strong> is Realized minus Transferred Price and has marked the cycle bottoms.<br>
+            <strong style="color:var(--text);">How to read it:</strong> price near the red line = cycle-top territory, take profit; price at or under the orange line = generational buy zone;
+            price under the green line = most holders are at a loss (bear-market accumulation). Drag across the chart to zoom, double-click or right-click to reset, click a name to hide it.
+            Data: Coin Metrics (price, supply, MVRV → Realized Price), BGeometrics (coin-days destroyed).
+          </p>
+        </div>
       </div>
 
       <!-- ── BTC around mega IPOs ── -->
@@ -2335,6 +2356,13 @@
             <div class="roi-chart-wrap" style="height:620px;"><canvas id="ytdCanvas"></canvas></div>
             <!-- Bottom legend with clickable years -->
             <div class="ytd-legend" id="ytdLegend"></div>
+            <p class="chart-note">
+              <strong style="color:var(--text);">What it shows:</strong> every year's return measured from its 1 January open, so all years start at 0% on the same day.
+              <strong style="color:var(--text);">Add Average</strong> draws the average path of the years you pick (for example the midterm years of the US presidential cycle);
+              <strong style="color:var(--text);">Standard Deviation</strong> adds a band of ± N·σ around it, the range those years normally stayed within.<br>
+              <strong style="color:var(--text);">How to read it:</strong> compare the current year with the average of its cycle bucket. Running far above the band = stretched, below = lagging the typical path.
+              Click a year to hide or show it, switch Linear/Logarithmic for big moves, and drag across the chart to zoom.
+            </p>
           </div>
         </div>
       </div>
@@ -2371,6 +2399,12 @@
               <div class="roi-chart-wrap" style="height:420px;"><canvas id="fngCanvas"></canvas></div>
             </div>
           </div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> the daily Crypto Fear &amp; Greed Index (0–100) from alternative.me, built from volatility, momentum, volume, social media and BTC dominance.
+            0–24 = extreme fear, 25–49 = fear, 50 = neutral, 51–74 = greed, 75–100 = extreme greed.<br>
+            <strong style="color:var(--text);">How to read it:</strong> it is a contrarian gauge. Extreme fear has lined up with local bottoms and extreme greed with local tops,
+            but it can stay extreme for weeks, so use it as one confluence, not an entry on its own. Pick a range with the buttons or the dates.
+          </p>
         </div>
       </div>
     </div>
@@ -2939,6 +2973,8 @@
 <script src="data-roi.js?v=20260914b"></script>
 <script src="data-fng.js?v=20260914b"></script>
 <script src="ipo-chart.js?v=4"></script>
+<script src="onchain-terminal.js?v=20261110"></script>
+<script src="terminal-chart.js?v=1"></script>
 <script src="youtube.js?v=7"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
@@ -3132,6 +3168,7 @@
     if (tab === 'ytdROI') drawYtdROI();
     if (tab === 'fng') drawFNG();
     if (tab === 'ipo' && window.LegionIPO) window.LegionIPO.draw();
+    if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
   };
 
   /* ── SUPPLY IN PROFIT / LOSS ── */
