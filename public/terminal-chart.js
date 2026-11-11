@@ -100,13 +100,15 @@
       }
       g.stroke();
     });
-    // marker where Terminal/Balanced history starts when it does not cover the full range
-    const cf = (Date.parse(D.cddFrom) - t0) / DAY;
+    // boundary between reconstructed (before) and measured (after) Terminal/Balanced history
+    const cf = (Date.parse(D.reconTo || D.cddFrom) - t0) / DAY;
     if (cf > i0 && cf < i1 && (!hidden.has('terminal') || !hidden.has('balanced'))) {
       const x = X(cf); g.setLineDash([3, 4]); g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = 1;
       g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.setLineDash([]);
-      g.fillStyle = '#8a8fa8'; g.textAlign = 'right'; g.textBaseline = 'top';
-      g.fillText('Terminal & Balanced from ' + fmtDate(cf) + ' →', x - 6, T + 4); g.textAlign = 'left';
+      g.fillStyle = '#8a8fa8'; g.textBaseline = 'top';
+      if (D.reconTo) { g.textAlign = 'right'; g.fillText('← reconstructed', x - 6, T + 4); g.textAlign = 'left'; g.fillText('measured →', x + 6, T + 4); }
+      else { g.textAlign = 'right'; g.fillText('Terminal & Balanced from ' + fmtDate(cf) + ' →', x - 6, T + 4); }
+      g.textAlign = 'left';
     }
     if (drag) { g.fillStyle = 'rgba(201,168,76,0.12)'; g.fillRect(Math.min(drag.x0, drag.x1), T, Math.abs(drag.x1 - drag.x0), ph); }
   }

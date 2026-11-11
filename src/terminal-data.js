@@ -2,7 +2,7 @@
 //   Realized    = price / MVRV                       (Coin Metrics community API, no key)
 //   Transferred = Σ(CDD × price) / (supply × days since genesis)
 //   Terminal    = 21 × Transferred,  Balanced = Realized − Transferred
-// CDD: src/cdd-history.json (committed: daily CDD since Nov 2022 + x0, the calibrated sum before it) + the last 4 years from
+// CDD: src/cdd-history.json (committed: daily CDD from 2010, reconstructed from ITC anchors before `reconTo`, measured after) + the last 4 years from
 // BGeometrics (free, 10 requests/hour; the job runs every 8h), cached in data/cdd-cache.json so a failed fetch keeps the last good copy.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,14 +47,14 @@ async function cddSeries() {
       fs.writeFileSync(CACHE, JSON.stringify(cache));
     }
   } catch (e) { console.log('[data] CDD fetch failed, using cached copy:', e.message); }
-  return { cdd, x0: hist.x0 || null };
+  return { cdd, x0: hist.x0 || null, reconTo: hist.reconTo || null };
 }
 
 export async function buildTerminal() {
-  const [rows, { cdd, x0 }] = await Promise.all([coinMetrics(), cddSeries()]);
+  const [rows, { cdd, x0, reconTo }] = await Promise.all([coinMetrics(), cddSeries()]);
   if (!rows.length) throw new Error('no Coin Metrics rows');
   const r5 = v => (v == null || !isFinite(v) ? null : +v.toPrecision(5));
-  const o = { start: rows[0].d, end: rows[rows.length - 1].d, cddFrom: null, price: [], realized: [], terminal: [], balanced: [] };
+  const o = { start: rows[0].d, end: rows[rows.length - 1].d, cddFrom: null, reconTo, price: [], realized: [], terminal: [], balanced: [] };
   // x0 = value-days destroyed before the CDD history starts (calibrated), so the sum is anchored correctly
   let X = x0 ? x0.value : 0, gap = 0;
   for (const r of rows) {
