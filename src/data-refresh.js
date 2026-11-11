@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildTerminal } from './terminal-data.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, '..', 'public');
@@ -144,6 +145,8 @@ export async function refreshData() {
       `window.LEGION_FNG=${JSON.stringify(fng)};\n`);
     console.log(`[data] data-fng.js updated — F&G=${fng.latest.value} (${fng.latest.cls})`);
   } catch (e) { console.log('[data] F&G fetch failed:', e.message); }
+
+  try { await buildTerminal(); } catch (e) { console.log('[data] Terminal price build failed:', e.message); }
 
   console.log('[data] All data files refreshed');
 }

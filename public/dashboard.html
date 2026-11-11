@@ -2240,7 +2240,7 @@
             <strong style="color:#ff9f43;">Balanced Price</strong> is Realized minus Transferred Price and has marked the cycle bottoms.<br>
             <strong style="color:var(--text);">How to read it:</strong> price near the red line = cycle-top territory, take profit; price at or under the orange line = generational buy zone;
             price under the green line = most holders are at a loss (bear-market accumulation). Drag across the chart to zoom, double-click or right-click to reset, click a name to hide it.
-            Data: Coin Metrics (price, supply, MVRV → Realized Price), BGeometrics (coin-days destroyed).
+            Data: Coin Metrics (price, supply, MVRV → Realized Price) and BGeometrics (coin-days destroyed), refreshed every 8 hours. Daily coin-days data before Nov 2022 is not freely available, so Terminal and Balanced Price are drawn from Nov 2022 and calibrated to match Into The Cryptoverse.
           </p>
         </div>
       </div>
@@ -4835,6 +4835,10 @@
     });
     reloadDataScript('data-fng.js', function(){
       if (window.LegionChartsV2) window.LegionChartsV2.drawFNG();
+    });
+    reloadDataScript('onchain-terminal.js', function(){
+      var r = document.getElementById('tp-root');
+      if (r) { r.removeAttribute('data-ready'); if (r.offsetParent && window.LegionTerminal) window.LegionTerminal.draw(); }
     });
     console.log('[auto-refresh] Chart data reloaded at', new Date().toLocaleTimeString());
   }
