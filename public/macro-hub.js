@@ -864,7 +864,7 @@
     markSeen(k) { this.seen.add(k); store.set('legionAlertsSeen', [...this.seen].slice(-400)); },
     matches(e) {
       if (e.country === 'US') return this.cfg.us && e.importance === 1;
-      if (e.country === 'JP') return this.cfg.boj && (e.importance === 1 || /^BoJ /.test(e.title));
+      if (e.country === 'JP') return this.cfg.boj && (e.importance === 1 || /^BoJ |^Interest Rate$/.test(e.title));
       return this.cfg.other && e.importance === 1;
     },
     start() {

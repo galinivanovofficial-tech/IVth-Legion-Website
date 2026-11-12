@@ -72,9 +72,12 @@
       const key = b.dataset.key; hidden.has(key) ? hidden.delete(key) : hidden.add(key);
       b.classList.toggle('off', hidden.has(key)); draw();
     });
-    canvas.addEventListener('mousedown', e => { drag = { x0: e.offsetX, x1: e.offsetX }; });
-    canvas.addEventListener('mousemove', e => { if (drag) { drag.x1 = e.offsetX; draw(); } hover(e.offsetX); });
-    canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; drag = null; draw(); });
+    // x inside the plot: dragging past the left/right edge (or off the canvas) selects up to that edge
+    const plotX = e => { const x = e.clientX - canvas.getBoundingClientRect().left; return geo ? Math.max(geo.L, Math.min(geo.L + geo.pw, x)) : x; };
+    canvas.addEventListener('mousedown', e => { if (e.button === 0) { const x = plotX(e); drag = { x0: x, x1: x }; e.preventDefault(); } });
+    canvas.addEventListener('mousemove', e => { if (!drag) hover(e.offsetX); });
+    window.addEventListener('mousemove', e => { if (drag) { drag.x1 = plotX(e); draw(); } });
+    canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; if (!drag) draw(); });
     window.addEventListener('mouseup', () => {
       if (!drag || !geo) return;
       const a = Math.min(drag.x0, drag.x1), b = Math.max(drag.x0, drag.x1); drag = null;

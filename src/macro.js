@@ -48,7 +48,12 @@ async function tvEvents(from, to, countries = CAL_COUNTRIES) {
 
 // TradingView ranks some headline prints lower than their siblings (e.g. PPI YoY = low while CPI YoY = high).
 // Lift those so they show with the default High + Medium filter and trigger release alerts.
-const IMPORTANCE_OVERRIDES = { 'US|PPI YoY': 1, 'US|Core PPI YoY': 0 };
+const KEY_US = ['Interest Rate', 'Inflation Rate YoY', 'Inflation Rate MoM', 'Core Inflation Rate YoY', 'Core Inflation Rate MoM',
+  'PPI YoY', 'PPI MoM', 'Core PPI YoY', 'Core PPI MoM', 'PCE Price Index YoY', 'PCE Price Index MoM', 'Core PCE Price Index YoY', 'Core PCE Price Index MoM',
+  'Non Farm Payrolls', 'Unemployment Rate', 'Average Hourly Earnings YoY', 'Average Hourly Earnings MoM', 'Retail Sales MoM', 'Retail Sales YoY',
+  'JOLTs Job Openings', 'ISM Manufacturing PMI', 'ISM Services PMI', 'Initial Jobless Claims', 'Michigan Consumer Sentiment Prel', 'Michigan Consumer Sentiment Final'];
+const IMPORTANCE_OVERRIDES = Object.fromEntries(KEY_US.map(t => ['US|' + t, 1]));
+const isKeyUS = e => e.country === 'US' && (KEY_US.includes(e.title) || /^GDP Growth Rate QoQ/.test(e.title));
 
 function slimEvents(rows) {
   const units = {};
@@ -57,7 +62,7 @@ function slimEvents(rows) {
     id: e.id, title: e.title, country: e.country, ticker: e.ticker || '', category: e.category || '', period: e.period || '',
     actual: e.actual ?? null, forecast: e.forecast ?? null, previous: e.previous ?? null,
     unit: e.unit || units[e.country + e.title] || '', scale: e.scale || '', currency: e.currency || '',
-    importance: IMPORTANCE_OVERRIDES[e.country + '|' + e.title] ?? e.importance, date: e.date, source: e.source || '', sourceUrl: /^https?:\/\//.test(e.source_url || '') ? e.source_url : '',
+    importance: IMPORTANCE_OVERRIDES[e.country + '|' + e.title] ?? (isKeyUS(e) ? 1 : e.importance), date: e.date, source: e.source || '', sourceUrl: /^https?:\/\//.test(e.source_url || '') ? e.source_url : '',
     comment: (e.comment || '').slice(0, 700),
   })).sort((a, b) => a.date.localeCompare(b.date) || b.importance - a.importance);
 }
@@ -78,14 +83,15 @@ const BANKS = {
   US: 'Federal Reserve', EU: 'European Central Bank', GB: 'Bank of England', JP: 'Bank of Japan', CA: 'Bank of Canada',
   AU: 'Reserve Bank of Australia', CH: 'Swiss National Bank', NZ: 'Reserve Bank of NZ', CN: 'People\'s Bank of China',
 };
-const isRateDecision = e => /INTR$/.test(e.ticker || '') && /Interest Rate Decision|Loan Prime Rate 1Y/.test(e.title);
+// TradingView titles vary by bank and over time ("Fed Interest Rate Decision" became plain "Interest Rate" in 2026).
+const isRateDecision = e => /INTR$/.test(e.ticker || '') && /Interest Rate|Loan Prime Rate 1Y|Cash Rate|Bank Rate|Policy Rate/.test(e.title) && !/Reserve Balances|Projection/.test(e.title);
 
 async function getRateEvents() {
   return cached('rates:events', 3600000, async () => {
     const out = [];
     const start = Date.now() - 150 * DAY, end = Date.now() + 120 * DAY;
     for (let f = start; f < end; f += 45 * DAY) {
-      out.push(...(await tvEvents(f, Math.min(end, f + 45 * DAY), Object.keys(BANKS))).filter(e => isRateDecision(e) || /^(Inflation Rate YoY|Core Inflation Rate YoY|PPI YoY|PPI MoM|Core PCE Price Index YoY|Unemployment Rate|Non Farm Payrolls|Initial Jobless Claims|GDP Growth Rate QoQ.*|Retail Sales YoY|Retail Sales MoM|Michigan Consumer Sentiment.*)$/.test(e.title)));
+      out.push(...(await tvEvents(f, Math.min(end, f + 45 * DAY), Object.keys(BANKS))).filter(e => isRateDecision(e) || /^(Inflation Rate YoY|Inflation Rate MoM|Core Inflation Rate YoY|Core Inflation Rate MoM|PPI YoY|PPI MoM|Core PPI YoY|Core PPI MoM|PCE Price Index YoY|PCE Price Index MoM|Core PCE Price Index YoY|Core PCE Price Index MoM|Average Hourly Earnings YoY|JOLTs Job Openings|ISM Manufacturing PMI|ISM Services PMI|Unemployment Rate|Non Farm Payrolls|Initial Jobless Claims|GDP Growth Rate QoQ.*|Retail Sales YoY|Retail Sales MoM|Michigan Consumer Sentiment.*)$/.test(e.title)));
       await sleep(250);
     }
     return out;
@@ -170,8 +176,8 @@ async function getEarnings(from, to) {
 // fred: one id, or a list of ids oldest -> newest that are stitched together (each newer source wins from its first print).
 // rescale: older sources are level-adjusted to match at the join (index series with different base years).
 export const SERIES = [
-  { id: 'usintr', code: 'USINTR', name: 'US Interest Rate (Fed funds, upper)', group: 'Rates', fred: ['FEDFUNDS', 'DFEDTAR', 'DFEDTARU'], unit: '%', kind: 'step', bias: ['Tightening', 'Easing', 'bear', 'bull'], flat: 'On hold', match: ['US', /^Fed Interest Rate Decision$/], note: 'Effective rate before 1982, target rate 1982–2008, upper bound since.' },
-  { id: 'jpintr', code: 'JPINTR', name: 'Japan Interest Rate (BoJ)', group: 'Rates', fred: ['IRSTCB01JPM156N'], unit: '%', kind: 'step', bias: ['Tightening', 'Easing', 'bear', 'bull'], flat: 'On hold', match: ['JP', /^BoJ Interest Rate Decision$/] },
+  { id: 'usintr', code: 'USINTR', name: 'US Interest Rate (Fed funds, upper)', group: 'Rates', fred: ['FEDFUNDS', 'DFEDTAR', 'DFEDTARU'], unit: '%', kind: 'step', bias: ['Tightening', 'Easing', 'bear', 'bull'], flat: 'On hold', match: ['US', /^(Fed )?Interest Rate( Decision)?$/], note: 'Effective rate before 1982, target rate 1982–2008, upper bound since.' },
+  { id: 'jpintr', code: 'JPINTR', name: 'Japan Interest Rate (BoJ)', group: 'Rates', fred: ['IRSTCB01JPM156N'], unit: '%', kind: 'step', bias: ['Tightening', 'Easing', 'bear', 'bull'], flat: 'On hold', match: ['JP', /^(BoJ )?Interest Rate( Decision)?$/] },
   { id: 'euintr', code: 'EUDIR', name: 'ECB Deposit Rate', group: 'Rates', fred: 'ECBDFR', unit: '%', kind: 'step', bias: ['Tightening', 'Easing', 'bear', 'bull'], flat: 'On hold', match: ['EU', /^ECB Interest Rate Decision$/] },
   { id: 'us10y', code: 'US10Y', name: 'US 10-Year Treasury Yield', group: 'Rates', fred: 'DGS10', unit: '%', kind: 'line', bias: ['Yields up', 'Yields down', 'bear', 'bull'] },
   { id: 'us02y', code: 'US02Y', name: 'US 2-Year Treasury Yield', group: 'Rates', fred: 'DGS2', unit: '%', kind: 'line', bias: ['Yields up', 'Yields down', 'bear', 'bull'] },
@@ -244,7 +250,7 @@ async function bojDecisions() {
   const out = [];
   for (let f = BOJ_FEED_FROM; f < Date.now(); f += 90 * DAY) {
     const rows = await tvEvents(f, Math.min(Date.now(), f + 90 * DAY), ['JP']);
-    for (const e of rows) if (e.title === 'BoJ Interest Rate Decision' && e.actual != null) out.push([Date.parse(e.date), e.actual]);
+    for (const e of rows) if (/^(BoJ )?Interest Rate( Decision)?$/.test(e.title) && e.actual != null) out.push([Date.parse(e.date), e.actual]);
     await sleep(250);
   }
   return out.sort((a, b) => a[0] - b[0]);
@@ -413,7 +419,35 @@ function range(req, maxDays) {
   return [[from, to], null];
 }
 
+// Next (and last) date of each headline US release, for the overview's Key Dates panel.
+const KEY_DATES = [
+  { id: 'fomc', label: 'FOMC rate decision', match: e => isRateDecision(e), show: ['Interest Rate'] },
+  { id: 'cpi', label: 'CPI (inflation)', match: e => /^(Core )?Inflation Rate (YoY|MoM)$/.test(e.title), show: ['Inflation Rate YoY', 'Inflation Rate MoM', 'Core Inflation Rate YoY', 'Core Inflation Rate MoM'] },
+  { id: 'ppi', label: 'PPI (producer prices)', match: e => /^(Core )?PPI (YoY|MoM)$/.test(e.title), show: ['PPI YoY', 'PPI MoM', 'Core PPI YoY', 'Core PPI MoM'] },
+  { id: 'jobs', label: 'Jobs report (NFP)', match: e => /^(Non Farm Payrolls|Unemployment Rate|Average Hourly Earnings YoY)$/.test(e.title), show: ['Non Farm Payrolls', 'Unemployment Rate', 'Average Hourly Earnings YoY'] },
+  { id: 'pce', label: 'PCE (Fed\'s inflation gauge)', match: e => /^(Core )?PCE Price Index (YoY|MoM)$/.test(e.title), show: ['Core PCE Price Index YoY', 'Core PCE Price Index MoM', 'PCE Price Index YoY'] },
+  { id: 'gdp', label: 'GDP', match: e => /^GDP Growth Rate QoQ/.test(e.title), show: null },
+  { id: 'retail', label: 'Retail sales', match: e => /^Retail Sales MoM$/.test(e.title), show: ['Retail Sales MoM'] },
+];
+async function keyDates() {
+  const events = (await getRateEvents()).filter(e => e.country === 'US');
+  const now = Date.now(), slim = e => ({ title: e.title, period: e.period || '', actual: e.actual ?? null, forecast: e.forecast ?? null, previous: e.previous ?? null, unit: e.unit || '', scale: e.scale || '' });
+  return KEY_DATES.map(k => {
+    const ev = events.filter(k.match).sort((a, b) => a.date.localeCompare(b.date));
+    const nextDate = ev.find(e => Date.parse(e.date) > now - 30 * 60000)?.date || null;
+    const lastDate = [...ev].reverse().find(e => Date.parse(e.date) <= now && e.actual != null)?.date || null;
+    const pick = d => (d ? ev.filter(e => e.date === d && (!k.show || k.show.includes(e.title))).sort((a, b) => (k.show ? k.show.indexOf(a.title) - k.show.indexOf(b.title) : 0)).map(slim) : []);
+    const nextItems = pick(nextDate), lastItems = pick(lastDate);
+    for (const i of nextItems) if (i.previous == null) i.previous = lastItems.find(l => l.title === i.title)?.actual ?? null; // e.g. the Fed rate
+    return { id: k.id, label: k.label, next: nextDate, nextItems, last: lastDate, lastItems };
+  });
+}
+
 export function registerMacroRoutes(router) {
+  router.get('/api/macro/keydates', async (req, res) => {
+    try { sendGz(req, res, { dates: await keyDates(), fetched: Date.now() }, 300); }
+    catch (e) { console.error('[macro] keydates:', e.message); res.json(502, { error: 'Key dates are unavailable right now.' }); }
+  });
   router.get('/api/macro/calendar', async (req, res) => {
     const [r, err] = range(req, 16);
     if (err) return res.json(400, { error: err });

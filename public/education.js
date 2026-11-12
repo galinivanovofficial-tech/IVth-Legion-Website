@@ -4,7 +4,7 @@ window.LegionEducation = (function () {
   'use strict';
 
   const CALLOUT_ICON = { plain: '💡', rule: '🔑', tip: '🎯', warn: '⚠️', live: '📈' };
-  let root, catalog = [], isAdmin = false;
+  let root, catalog = [], isAdmin = false, indicators = [];
   const cache = new Map();                 // course id -> full course
   let course = null, lessons = [], glossaryRe = null;
   let done = new Set(), lastId = null, view = { kind: 'academy' };
@@ -30,7 +30,8 @@ window.LegionEducation = (function () {
     if (catalog.length) { render(); return; }
     root.innerHTML = '<div class="edu-loading">Loading the Academy…</div>';
     try {
-      const [cat, p] = await Promise.all([api('/api/education/courses'), api('/api/education/progress')]);
+      const [cat, p, ind] = await Promise.all([api('/api/education/courses'), api('/api/education/progress'), api('/api/education/indicators').catch(() => ({ indicators: [] }))]);
+      indicators = ind.indicators || [];
       catalog = cat.courses; isAdmin = cat.isAdmin;
       done = new Set(p.done); lastId = p.last;
       const h = /^#education\/(.+)$/.exec(location.hash);
@@ -202,8 +203,41 @@ window.LegionEducation = (function () {
           `<span class="edu-mcard-bar"><span style="width:${p.pct}%"></span></span>` +
           `<span class="edu-ccard-cta">${p.d === p.t ? '✓ Completed — review' : p.d ? `Continue · ${p.pct}%` : 'Start course →'}</span></span></button>`;
       }).join('') +
-      '</div>'
+      '</div>' + indicatorsHTML()
     );
+  }
+
+  function indicatorsHTML() {
+    if (!indicators.length) return '';
+    return '<h3 class="edu-section-title" id="edu-indicators">TradingView Indicators</h3>' +
+      '<p class="edu-ind-lead">The indicators we use in the course and in the channel. Download one, follow the steps below, and it is on your chart in two minutes. Free TradingView account is enough.</p>' +
+      '<div class="edu-ind-grid">' + indicators.map(i =>
+        `<div class="edu-ind"><span class="edu-ind-tag">${esc(i.tag)}</span><span class="edu-ind-name">${esc(i.name)}</span>` +
+        `<span class="edu-ind-chart">${esc(i.chart)}</span><span class="edu-ind-what">${esc(i.what)}</span>` +
+        `<span class="edu-ind-btns"><a class="edu-btn" href="/api/education/indicator?f=${encodeURIComponent(i.id)}" download>Download .pine</a>` +
+        `<button class="edu-btn ghost" data-copy-ind="${esc(i.id)}">Copy code</button></span></div>`).join('') +
+      '</div>' +
+      '<details class="edu-ind-how" open><summary>How to add an indicator to TradingView</summary><ol>' +
+        '<li>Press <b>Copy code</b> on the indicator you want (or download the file and open it in TextEdit / Notepad, select all and copy).</li>' +
+        '<li>Open <b>tradingview.com</b>, sign in and open any chart (for example BTCUSD).</li>' +
+        '<li>At the bottom of the chart, click <b>Pine Editor</b>.</li>' +
+        '<li>Click inside the editor, select everything already there (<b>Cmd+A</b> on Mac, <b>Ctrl+A</b> on Windows) and paste (<b>Cmd+V</b> / <b>Ctrl+V</b>) so our code replaces it.</li>' +
+        '<li>Click <b>Save</b> and give it a name, for example <i>IVth Legion BMSB</i>.</li>' +
+        '<li>Click <b>Add to chart</b>. The indicator appears on your chart.</li>' +
+        '<li>Next time you do not need the code: top bar <b>Indicators</b> → <b>My scripts</b> → click its name.</li>' +
+      '</ol><p class="edu-ind-note">Change colours or lengths with the ⚙ gear next to the indicator name on the chart. The free plan limits how many indicators fit on one chart; remove one if TradingView asks. ' +
+      'The other tools in the course are built into TradingView: open <b>Indicators</b> and search <i>Moving Average Exponential</i> (12D EMA), <i>Moving Average Simple</i> (50D / 100D SMA), <i>Relative Strength Index</i>, <i>MACD</i> or <i>Visible Range Volume Profile</i>.</p></details>';
+  }
+
+  async function copyIndicator(btn) {
+    const was = btn.textContent;
+    try {
+      const r = await fetch(`/api/education/indicator?f=${encodeURIComponent(btn.dataset.copyInd)}&view=1`);
+      if (!r.ok) throw new Error();
+      await navigator.clipboard.writeText(await r.text());
+      btn.textContent = '✓ Copied — paste it in Pine Editor';
+    } catch { btn.textContent = 'Could not copy — use Download'; }
+    setTimeout(() => { btn.textContent = was; }, 3000);
   }
 
   function homeHTML() {
@@ -315,6 +349,7 @@ window.LegionEducation = (function () {
     v.querySelectorAll('[data-open]').forEach(b => { b.onclick = () => openLesson(b.dataset.open); });
     v.querySelectorAll('[data-go]').forEach(a => { a.onclick = () => go(a.dataset.go); });
     v.querySelectorAll('[data-course]').forEach(a => { a.onclick = () => openCourse(a.dataset.course); });
+    v.querySelectorAll('[data-copy-ind]').forEach(b => { b.onclick = () => copyIndicator(b); });
     v.querySelectorAll('[data-anchor]').forEach(a => {
       a.onclick = () => { const t = v.querySelector('#' + CSS.escape(a.dataset.anchor)); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     });

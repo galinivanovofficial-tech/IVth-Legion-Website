@@ -11,9 +11,10 @@
   <script src="chart-zoom.js?v=1"></script>
   <script src="btc-chart.js?v=6"></script>
   <script src="orderflow-chart.js?v=30"></script>
-  <script src="education.js?v=6"></script>
+  <script src="education.js?v=7"></script>
   <script src="trade-tracker.js?v=5"></script>
-  <script src="macro-hub.js?v=9"></script>
+  <script src="macro-hub.js?v=10"></script>
+  <script src="key-dates.js?v=2"></script>
   <style>
     :root {
       --gold: #c9a84c;
@@ -374,6 +375,22 @@
     }
 
     .dash-grid-full { grid-column: 1 / -1; }
+    .kd-list { padding:6px 20px 12px; }
+    .kd-row { display:grid; grid-template-columns:92px 1fr auto; gap:14px; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .kd-row:last-child { border-bottom:none; }
+    .kd-row.soon .kd-left { color:var(--gold); font-weight:700; }
+    .kd-when { display:flex; flex-direction:column; }
+    .kd-day { font:600 13px 'Inter',sans-serif; color:var(--text); }
+    .kd-time { font-size:11.5px; color:var(--text-muted); }
+    .kd-label { font:700 14px 'Inter',sans-serif; color:var(--text); }
+    .kd-period { font-weight:500; font-size:11.5px; color:var(--text-muted); margin-left:4px; }
+    .kd-items { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:4px; font-size:12px; color:var(--text-muted); }
+    .kd-items b { color:var(--text); font-weight:600; margin-right:3px; }
+    .kd-last { margin-top:3px; font-size:11.5px; color:var(--text-muted); opacity:.8; }
+    .kd-left { font-size:12.5px; color:var(--text-muted); white-space:nowrap; text-align:right; }
+    .kd-live { color:#ef5350; font-weight:700; }
+    .kd-empty { padding:24px 0; text-align:center; color:var(--text-muted); font-size:12.5px; }
+    @media (max-width:600px) { .kd-row { grid-template-columns:70px 1fr; } .kd-left { grid-column:2; text-align:left; } }
 
     /* Panels */
     .panel {
@@ -864,6 +881,20 @@
     .edu-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(201,168,76,0.25); }
     .edu-btn.ghost { background:transparent; color:#1fb886; border:1px solid rgba(31,184,134,0.45); }
     .edu-section-title { font-family:'Cinzel',serif; font-size:16px; color:var(--text); margin:30px 0 14px; letter-spacing:.05em; }
+    .edu-ind-lead { color:var(--text-muted); font-size:13.5px; margin:-6px 0 14px; max-width:760px; line-height:1.55; }
+    .edu-ind-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+    .edu-ind { display:flex; flex-direction:column; gap:7px; padding:16px; background:var(--dark2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; }
+    .edu-ind-tag { align-self:flex-start; font:700 10px 'Inter',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); border:1px solid rgba(201,168,76,0.35); border-radius:20px; padding:2px 9px; }
+    .edu-ind-name { font:700 15px 'Inter',sans-serif; color:var(--text); }
+    .edu-ind-chart { font-size:12px; color:var(--text-muted); }
+    .edu-ind-what { font-size:13px; line-height:1.5; color:var(--text); opacity:.85; flex:1; }
+    .edu-ind-btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+    .edu-ind-btns .edu-btn { padding:8px 14px; font-size:12px; text-decoration:none; }
+    .edu-ind-how { margin-top:16px; padding:14px 18px; background:var(--dark2); border:1px solid rgba(201,168,76,0.25); border-radius:10px; font-size:13.5px; line-height:1.6; }
+    .edu-ind-how summary { cursor:pointer; font-weight:700; color:var(--gold); }
+    .edu-ind-how ol { margin:10px 0 6px 20px; padding:0; }
+    .edu-ind-how li { margin:4px 0; }
+    .edu-ind-note { color:var(--text-muted); font-size:12.5px; margin:8px 0 0; }
     .edu-modules { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
     .edu-mcard { display:flex; flex-direction:column; gap:6px; text-align:left; padding:16px; background:var(--dark2); border:1px solid rgba(255,255,255,0.06); border-radius:10px; cursor:pointer; color:inherit; font-family:'Inter',sans-serif; transition:border-color .2s, transform .2s; }
     .edu-mcard:hover { border-color:var(--border); transform:translateY(-2px); }
@@ -2052,10 +2083,12 @@
       <div class="dash-grid">
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">📊 BTC/USD — Live Chart</span>
-            <span class="panel-badge">TradingView</span>
+            <span class="panel-title">📅 Key Dates — US Macro</span>
+            <button class="panel-action" onclick="showSection('calendar')">Full calendar</button>
           </div>
-          <div class="chart-container" id="overview-chart"></div>
+          <div class="panel-body kd-list" id="keydates-root">
+            <div class="kd-empty">Loading…</div>
+          </div>
         </div>
         <div>
           <!-- Quick news -->
@@ -2829,7 +2862,7 @@
   // Init overview chart on load + render risk charts (default section)
   window.addEventListener('load', () => {
     setTimeout(() => {
-      initOverviewChart();
+      if (window.LegionKeyDates) LegionKeyDates.init();
     }, 300);
     setTimeout(() => { if (window.LegionCharts) window.LegionCharts.render(); }, 400);
   });
@@ -3004,7 +3037,7 @@
 <script src="onchain-terminal.js?v=20261110"></script>
 <script src="terminal-chart.js?v=2"></script>
 <script src="mining-cost.js?v=20261112"></script>
-<script src="mining-cost-chart.js?v=4"></script>
+<script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */

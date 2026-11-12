@@ -1,0 +1,23 @@
+//@version=6
+indicator("Weekly SMA 50 / 200", shorttitle="W SMA", overlay=true)
+
+len1   = input.int(50,  "Fast SMA (weeks)", minval=1)
+len2   = input.int(200, "Slow SMA (weeks)", minval=1)
+col1   = input.color(color.new(#2962ff, 0), "Fast color")
+col2   = input.color(color.new(#ff6d00, 0), "Slow color")
+width  = input.int(2, "Line width", minval=1, maxval=4)
+showLb = input.bool(true, "Show price labels")
+
+// Weekly SMAs, same values on every chart timeframe (updates live during the current week)
+[w50, w200] = request.security(syminfo.tickerid, "W", [ta.sma(close, len1), ta.sma(close, len2)])
+
+plot(w50,  "50W SMA",  color=col1, linewidth=width)
+plot(w200, "200W SMA", color=col2, linewidth=width)
+
+var label lb1 = na
+var label lb2 = na
+if showLb and barstate.islast
+    label.delete(lb1)
+    label.delete(lb2)
+    lb1 := label.new(bar_index, w50,  str.tostring(len1) + "W  " + str.tostring(w50,  format.mintick), style=label.style_label_left, color=col1, textcolor=color.white, size=size.small)
+    lb2 := label.new(bar_index, w200, str.tostring(len2) + "W  " + str.tostring(w200, format.mintick), style=label.style_label_left, color=col2, textcolor=color.white, size=size.small)

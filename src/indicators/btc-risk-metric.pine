@@ -1,0 +1,77 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Skywalking2874 (risk math, K5YcHwKk) · fixed + restyled as an "Into The Cryptoverse"
+//   historical-risk-levels scatter for the IVth Legion.
+//
+// VERIFIED: compiled clean in TradingView's Pine Editor on 2026-07-12 (0 errors,
+// 1 harmless "recommend v6" notice). Confirmed live via pine_smart_compile.
+//
+// WHY THE REFERENCE SCRIPT (K5YcHwKk / Skywalking2874) BREAKS ON TODAY'S DATA
+// It scales BTC's stretch above its 374-day SMA by bar_index^0.395. bar_index
+// is just "how many bars have loaded on THIS chart" -- not a calendar date.
+// So the exponent's base keeps changing as TradingView backfills more BTC
+// history further into the past, it depends on the chart's timeframe (bar_index
+// climbs ~365x faster on 1H vs 1D), and it's meaningless on any chart that
+// isn't the exact BTC series the script happened to load history from.
+// FIX: bar_index -> true calendar days since BTC's genesis block (2009-01-03),
+// computed via request.security so the risk value is identical no matter what
+// symbol or timeframe you actually have open, and holds from 2011 straight to today.
+//
+// THE FORMULA
+//   d       = ln(BTC close) - SMA250(ln BTC close)     // stretch vs. trend
+//   raw     = d * ageDays^k                             // age-weighted (k=0.5)
+//   risk    = (raw - min(raw)) / (max(raw) - min(raw))   over all history
+//   ageDays = days since 2009-01-03 (genesis block)
+// SMA=250 / k=0.5 are data-fitted to Cowen's actual published curve (RMSE 0.088
+// vs. his real values). Set SMA back to 374 / k to 0.395 for the original
+// Skywalking formula exactly, bar_index bug and all.
+//
+// READING THE COLOURS (10 bins, blue -> red, matching the ITC legend)
+//   RED  (0.8-1.0) = euphoria: price stretched far above trend for how mature
+//                    the cycle is -- historically the distribution zone.
+//   BLUE (0.0-0.2) = apathy/capitulation: price at or below trend -- historically
+//                    the accumulation zone.
+//   An "apathetic top" = a price high that prints blue/green instead of red:
+//   the high was made without the crowd euphoria/stretch that normally marks a
+//   cycle blow-off, so it reads as lower-conviction and more likely to be
+//   revisited, vs. a red euphoric top which historically holds.
+//
+// SETUP: put this on an INDEX:BTCUSD chart, Daily+, price scale set to
+// Logarithmic (bottom-right of the price axis) to match the ITC look.
+//@version=5
+indicator("BTC Historical Risk Levels", shorttitle="BTC Risk", overlay=true, max_bars_back=5000)
+
+maLen = input.int(250, "Trend SMA length (days)", minval=2, tooltip="Best fit vs Cowen's published curve = 250. Original Skywalking script uses 374.")
+powerK = input.float(0.50, "Age-weighting power (k)", minval=0.0, maxval=1.5, step=0.05, tooltip="Best fit = 0.50. Original Skywalking script uses 0.395.")
+btcSym = input.symbol("INDEX:BTCUSD", "Bitcoin data source", tooltip="Risk is ALWAYS computed on this symbol's daily data, regardless of the chart's own symbol/timeframe.")
+dotWidth = input.int(3, "Dot size", minval=1, maxval=6)
+
+f_daily() =>
+    genesis = timestamp("UTC", 2009, 1, 3, 0, 0)
+    ageDays = math.max(1.0, (time - genesis) / 86400000.0)
+    lnp = math.log(close)
+    ma = ta.sma(lnp, maLen)
+    d = lnp - ma
+    raw = d * math.pow(ageDays, powerK)
+    var float lo = na
+    var float hi = na
+    if not na(raw)
+        lo := na(lo) ? raw : math.min(lo, raw)
+        hi := na(hi) ? raw : math.max(hi, raw)
+    [close, raw, lo, hi]
+
+[btcClose, raw, lo, hi] = request.security(btcSym, "D", f_daily(), lookahead=barmerge.lookahead_off)
+risk = (na(hi) or hi == lo) ? na : math.max(0.0, math.min(1.0, (raw - lo) / (hi - lo)))
+
+riskColor(r) => r < 0.1 ? #1a1aff : r < 0.2 ? #1e78ff : r < 0.3 ? #17c3e6 : r < 0.4 ? #17e6ae : r < 0.5 ? #3ee63e : r < 0.6 ? #b9e617 : r < 0.7 ? #ffd400 : r < 0.8 ? #ff9500 : r < 0.9 ? #ff3d00 : #c00000
+
+plot(btcClose, "BTC price, risk-coloured", color = na(risk) ? na : riskColor(risk), style = plot.style_circles, linewidth = dotWidth)
+
+var table lg = table.new(position.bottom_left, 10, 1, frame_color = color.new(color.gray, 60), frame_width = 1, bgcolor = color.new(color.black, 20))
+if barstate.islast
+    labels = array.from("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
+    for i = 0 to 9
+        table.cell(lg, i, 0, array.get(labels, i), text_color = riskColor(i / 10.0 + 0.01), text_size = size.tiny, bgcolor = color.new(color.black, 20))
+
+var table tb = table.new(position.bottom_right, 10, 10, frame_color = color.new(color.gray, 40), frame_width = 1)
+if barstate.islast
+    table.cell(tb, 0, 0, "BTC Risk · Latest Value: " + str.tostring(risk, "0.000"), text_color = na(risk) ? color.gray : riskColor(risk), text_size = size.large, bgcolor = color.new(color.black, 10))

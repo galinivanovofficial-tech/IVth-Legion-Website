@@ -357,7 +357,39 @@ function sendJSON(req, res, obj) {
 const query = req => new URL(req.url, 'http://x').searchParams;
 const allLessonIds = () => new Set([...courses.values()].flatMap(c => c.modules.flatMap(m => m.lessons.map(l => l.id))));
 
+// TradingView indicators members can download from the top of the Academy (Pine source in src/indicators).
+const INDICATORS = [
+  { id: 'bmsb-weekly', name: 'Bull Market Support Band (Weekly)', tag: 'Trend', chart: 'Any asset · daily or weekly chart',
+    what: 'The 20-week SMA (red) and 21-week EMA (green) with the band between them. Above the band = bull trend, below it = bear trend. Our main trend filter (course 5.3).' },
+  { id: 'bmsb-monthly', name: 'Bull Market Support Band (Monthly)', tag: 'Trend', chart: 'Gold, oil, indices · weekly or monthly chart',
+    what: 'The same band on monthly candles (20-month SMA, 21-month EMA). For slower assets where the weekly band is crossed too often.' },
+  { id: 'weekly-sma-50-200', name: 'Weekly SMA 50 / 200', tag: 'Trend', chart: 'Any asset · any timeframe',
+    what: 'The 50-week (blue) and 200-week (orange) averages with price labels. The 200W has marked every major Bitcoin bear-market low (course 5.2).' },
+  { id: 'btc-risk-metric', name: 'BTC Risk Metric', tag: 'Bitcoin', chart: 'BTC · daily or weekly chart',
+    what: 'Draws Bitcoin\'s price as dots coloured by its 0–1 risk: blue = low risk (accumulate), red = high risk (take profit). Always reads Bitcoin, whatever chart is open (course 9.4).' },
+  { id: 'btc-aqr', name: 'BTC Quantile Regression (AQR)', tag: 'Bitcoin', chart: 'BTC · daily or weekly chart, log scale',
+    what: 'Seven long-term price bands for Bitcoin, from the historic floor (Q1) to the speculative top (Q99). Shows how cheap or expensive BTC is against its whole history (course 9.1).' },
+];
+const indicatorFile = id => new URL(`./indicators/${id}.pine`, import.meta.url); // a file URL: safe with spaces in the path
+
 export function registerEducationRoutes(router) {
+  router.get('/api/education/indicators', (req, res) => {
+    const user = requireMember(req, res); if (!user) return;
+    res.json(200, { indicators: INDICATORS.filter(i => fs.existsSync(indicatorFile(i.id))) });
+  });
+
+  // ?f=<id> downloads the .pine file; &view=1 returns it as plain text for the "Copy code" button.
+  router.get('/api/education/indicator', (req, res) => {
+    const user = requireMember(req, res); if (!user) return;
+    const q = query(req), ind = INDICATORS.find(i => i.id === q.get('f'));
+    if (!ind || !fs.existsSync(indicatorFile(ind.id))) return res.json(404, { error: 'Unknown indicator' });
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'private, no-cache',
+      ...(q.get('view') ? {} : { 'Content-Disposition': `attachment; filename="IVth-Legion-${ind.id}.pine"` }),
+    });
+    fs.createReadStream(indicatorFile(ind.id)).pipe(res);
+  });
+
   router.get('/api/education/courses', async (req, res) => {
     const user = requireMember(req, res); if (!user) return;
     const list = await Promise.all(COURSES.map(async def => {
