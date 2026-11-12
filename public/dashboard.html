@@ -2260,8 +2260,7 @@
             <strong style="color:var(--text);">How to read it:</strong> the cost of production acts as a floor. When price trades far above it, miners are very profitable and the market is usually extended.
             When price falls to or under it, miners are near break-even or losing money, weaker miners sell or shut down, and historically that zone has been a strong long-term buy area.
             The cost jumps after each halving (April 2024), because the reward per block is cut in half. Hover to see the price-vs-cost margin on any day; drag to zoom, double-click or right-click to reset.
-            Data: quarterly cost from MARA's filings as charted by CryptoQuant (Q3 2026 = $62,862; earlier quarters read from the chart, within about $500); BTC price from Coin Metrics, refreshed every 12 hours.
-            A new quarter is added after MARA reports, about 5–6 weeks after the quarter ends.
+            Data: MARA's own quarterly (10-Q) and annual (10-K) reports to the SEC, the same source CryptoQuant uses: purchased energy + third-party hosting + operating and maintenance costs, divided by the bitcoin MARA produced; Q4 is the annual report minus the first three quarters. A new quarter is added automatically as soon as MARA files it, about 5–6 weeks after the quarter ends (Q4 in late February). BTC price from Coin Metrics, refreshed every 12 hours.
           </p>
         </div>
       </div>
@@ -3004,7 +3003,8 @@
 <script src="ipo-chart.js?v=4"></script>
 <script src="onchain-terminal.js?v=20261110"></script>
 <script src="terminal-chart.js?v=2"></script>
-<script src="mining-cost-chart.js?v=2"></script>
+<script src="mining-cost.js?v=20261112"></script>
+<script src="mining-cost-chart.js?v=4"></script>
 <script src="youtube.js?v=7"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
@@ -4870,6 +4870,8 @@
     reloadDataScript('onchain-terminal.js', function(){
       var r = document.getElementById('tp-root');
       if (r) { r.removeAttribute('data-ready'); if (r.offsetParent && window.LegionTerminal) window.LegionTerminal.draw(); }
+    });
+    reloadDataScript('mining-cost.js', function(){
       var mc = document.getElementById('mc-root');
       if (mc && window.LegionMiningCost) { window.LegionMiningCost.reset(); if (mc.offsetParent) window.LegionMiningCost.draw(); }
     });

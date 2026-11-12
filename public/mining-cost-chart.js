@@ -1,17 +1,13 @@
 /* BTC average mining cost per BTC (MARA, quarterly) against the daily BTC price.
    Price: window.LEGION_TERMINAL (onchain-terminal.js, refreshed every 12h).
-   Cost: quarterly all-in cost per BTC mined from MARA's filings, as charted by CryptoQuant.
-   Add one row per quarter when MARA reports (about 5-6 weeks after the quarter ends). */
+   Cost: window.LEGION_MINING from mining-cost.js, built by src/mining-cost.js from MARA's SEC filings
+   (energy + hosting + operating and maintenance costs / BTC produced); a new quarter appears when MARA files. */
 (function () {
   'use strict';
 
-  const COST = [ // [quarter start, cost per BTC in USD, exact?]
-    ['2023-01-01', 15100], ['2023-04-01', 18700], ['2023-07-01', 17200], ['2023-10-01', 22400],
-    ['2024-01-01', 26500], ['2024-04-01', 42700], ['2024-07-01', 47200], ['2024-10-01', 47800],
-    ['2025-01-01', 51600], ['2025-04-01', 56400], ['2025-07-01', 67600], ['2025-10-01', 70000],
-    ['2026-01-01', 64400], ['2026-04-01', 59600], ['2026-07-01', 62862, true],
-  ];
-  const FROM = '2023-01-01', DAY = 864e5;
+  // [quarter start, cost per BTC] from mining-cost.js (served by the server, updated when MARA files)
+  let COST = [];
+  const FROM = '2022-01-01', DAY = 864e5;
   const C_PRICE = '#e8e8ef', C_COST = '#8b7cf6';
   const hidden = new Set();
   let root, canvas, tip, geo = null, zoom = null, drag = null, S = null;
@@ -56,8 +52,9 @@
   function build() {
     root = document.getElementById('mc-root');
     if (!root || root.dataset.ready) return !!root;
+    COST = window.LEGION_MINING || [];
     S = series();
-    if (!S) { root.innerHTML = '<p class="ipo-note">Data not loaded.</p>'; return false; }
+    if (!S || !COST.length) { root.innerHTML = '<p class="ipo-note">Data not loaded.</p>'; return false; }
     root.dataset.ready = '1';
     const last = COST[COST.length - 1], n = S.price.length - 1, p = S.price[n], m = (p / last[1] - 1) * 100;
     root.innerHTML = `
@@ -119,12 +116,13 @@
     }
     // time grid: Jan/May/Sep, or every month when zoomed in
     const months = (S.t[i1] - S.t[i0]) / DAY < 500;
-    g.textAlign = 'center'; g.textBaseline = 'top';
+    g.textAlign = 'center'; g.textBaseline = 'top'; let lastRight = -1e9;
     for (let y = new Date(S.t[i0]).getUTCFullYear(); y <= new Date(S.t[i1]).getUTCFullYear(); y++) for (let m = 0; m < 12; m += months ? 1 : 4) {
       const i = (Date.UTC(y, m, 1) - S.t[0]) / DAY; if (i < i0 || i > i1) continue;
       const x = X(i); g.strokeStyle = 'rgba(255,255,255,0.04)'; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke();
       const lbl = new Date(Date.UTC(y, m, 1)).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }) + ' ' + y, half = g.measureText(lbl).width / 2;
-      g.fillStyle = '#8a8fa8'; g.fillText(lbl, Math.max(half, Math.min(L + pw - half, x)), T + ph + 6);
+      const lx = Math.max(half, Math.min(L + pw - half, x)); if (lx - half < lastRight + 8) continue; lastRight = lx + half;
+      g.fillStyle = '#8a8fa8'; g.fillText(lbl, lx, T + ph + 6);
     }
     g.textAlign = 'left';
     // latest reported cost as a dashed level across the chart

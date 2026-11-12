@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTerminal } from './terminal-data.js';
+import { updateMiningCost } from './mining-cost.js';
 import { config } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Generated chart data goes to the writable data dir (in production public/ is read-only inside the image).
 // The routes below serve the fresh copy and fall back to the one baked into public/.
 export const OUT = path.join(config.dataDir, 'charts');
-export const DATA_FILES = ['data-risk.js', 'data-roi.js', 'data-fng.js', 'onchain-terminal.js'];
+export const DATA_FILES = ['data-risk.js', 'data-roi.js', 'data-fng.js', 'onchain-terminal.js', 'mining-cost.js'];
 const PUBLIC = path.join(__dirname, '..', 'public');
 
 export function registerDataFileRoutes(router) {
@@ -164,6 +165,7 @@ export async function refreshData() {
   } catch (e) { console.log('[data] F&G fetch failed:', e.message); }
 
   try { await buildTerminal(); } catch (e) { console.log('[data] Terminal price build failed:', e.message); }
+  try { await updateMiningCost(); } catch (e) { console.log('[data] Mining cost update failed:', e.message); }
 
   console.log('[data] All data files refreshed');
 }

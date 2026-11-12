@@ -1,0 +1,24 @@
+{
+ "note": "MARA quarterly mining cost from its SEC 10-Q/10-K filings, $ thousands. cost = purchased energy + third-party hosting and other energy + operating and maintenance (2022-2023: 'energy, hosting and other' as restated in the 2023 filings; 2024: 'Mining'). btc = BTC produced. Q4 = 10-K full year minus Q1-Q3. 2022 Q2/Q4 BTC from MARA's production reports (2022 total 4,144 per the 10-K). New quarters are added by src/mining-cost.js into DATA_DIR/mining-cost.json.",
+ "quarters": {
+  "2022Q1": { "cost": 12522, "btc": 1259 },
+  "2022Q2": { "cost": 16686, "btc": 707 },
+  "2022Q3": { "cost": 13773, "btc": 616 },
+  "2022Q4": { "cost": 29734, "btc": 1562 },
+  "2023Q1": { "cost": 33377, "btc": 2195 },
+  "2023Q2": { "cost": 55222, "btc": 2926 },
+  "2023Q3": { "cost": 59628, "btc": 3490 },
+  "2023Q4": { "cost": 75111, "btc": 4241 },
+  "2024Q1": { "cost": 71240, "btc": 2811 },
+  "2024Q2": { "cost": 85838, "btc": 2058 },
+  "2024Q3": { "cost": 97149, "btc": 2070 },
+  "2024Q4": { "cost": 127415, "btc": 2492 },
+  "2025Q1": { "cost": 131458, "btc": 2286 },
+  "2025Q2": { "cost": 133121, "btc": 2358 },
+  "2025Q3": { "cost": 145054, "btc": 2144 },
+  "2025Q4": { "cost": 157635, "btc": 2011 },
+  "2026Q1": { "cost": 145412, "btc": 2247 },
+  "2026Q2": { "cost": 144811, "btc": 2422 },
+  "2026Q3": { "cost": 141116, "btc": 2247 }
+ }
+}
