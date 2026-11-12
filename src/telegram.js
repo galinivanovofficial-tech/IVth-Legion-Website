@@ -82,7 +82,8 @@ async function onChatMember(upd) {
       if (byHandle) user = byHandle;
     }
     if (user && hasAccess(user)) {
-      Users.update(user.id, { telegram_user_id: String(tgUser.id), telegram_joined: 1 });
+      // The single-use link is spent: clear it so the dashboard makes a fresh one if they ever need to rejoin.
+      Users.update(user.id, { telegram_user_id: String(tgUser.id), telegram_joined: 1, invite_link: '', invite_expires: 0 });
       Audit.log(user.id, 'telegram_joined');
       console.log(`[telegram] ${user.email} joined the group`);
     } else {

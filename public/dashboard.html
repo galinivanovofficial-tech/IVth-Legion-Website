@@ -4938,12 +4938,18 @@
     setV('acc-email', user.email || '');
     setV('acc-tg', user.telegram_username ? '@' + user.telegram_username : '');
 
-    // Telegram invite links
-    const invite = user.invite_link;
-    document.querySelectorAll('a[href="https://t.me/ivthlegion"]').forEach(a => {
-      if (invite) a.href = invite;
-      a.target = '_blank'; a.rel = 'noopener';
-    });
+    // Telegram invite links: the member's personal single-use link, created by the server when missing or expired
+    const tgLinks = [...document.querySelectorAll('a[href="https://t.me/ivthlegion"]')];
+    const setTg = link => tgLinks.forEach(a => { if (link) a.href = link; a.target = '_blank'; a.rel = 'noopener'; });
+    setTg(user.invite_link);
+    if ((user.access || {}).telegram > Date.now() / 1000) {
+      fetch('/api/telegram/invite').then(r => (r.ok ? r.json() : null)).then(d => {
+        if (!d || !d.link) return;
+        setTg(d.link);
+        const note = document.querySelector('#sec-telegram .tg-note');
+        if (note && d.personal && d.expires) note.textContent = 'This is your personal invite link: it works once, for you only, until ' + new Date(d.expires * 1000).toLocaleString() + '. Do not share it. Open this page again for a new one.';
+      }).catch(() => { /* keep the fallback link */ });
+    }
 
     // Access: which rights this account has and until when
     const A = user.access || {}, nowS = Date.now() / 1000;

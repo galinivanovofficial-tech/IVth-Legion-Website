@@ -109,6 +109,16 @@ export function redeemCode(user, raw) {
 }
 
 export function registerAccessRoutes(router) {
+  // The member's personal single-use Telegram invite. Reuses the stored link while it is valid and creates a new one
+  // when it has expired or was never made (admins, hand-made members, links older than TELEGRAM_INVITE_HOURS).
+  router.get('/api/telegram/invite', async (req, res) => {
+    const user = requireRight(req, res, 'telegram'); if (!user) return;
+    if (!rateLimit(`invite:${user.id}`, 20, 60 * 60 * 1000)) return res.json(429, { error: 'Too many requests. Try again later.' });
+    const link = await ensureInvite(user).catch(e => { console.error('[access] invite:', e.message); return ''; });
+    const fresh = Users.byId(user.id);
+    res.json(200, { link, personal: !!link && link === fresh.invite_link, expires: fresh.invite_expires || 0 });
+  });
+
   router.post('/api/access/redeem', async (req, res) => {
     const user = requireAuth(req, res); if (!user) return;
     if (!rateLimit(`redeem:${user.id}`, 5, 60 * 60 * 1000) || !rateLimit(`redeem-ip:${req.ip}`, 10, 60 * 60 * 1000)) {
