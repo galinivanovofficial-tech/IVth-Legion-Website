@@ -307,7 +307,7 @@ function convert(def, html) {
   };
 }
 
-// Build a course from HTML on disk instead of the Google Doc (scripts/import-course.js, fed by scripts/docx_to_html.py).
+// Build a course from HTML on disk instead of the Google Doc (src/import-course.js, fed by scripts/docx_to_html.py).
 export function importCourseHTML(id, html) {
   const def = COURSES.find(c => c.id === id);
   if (!def) throw new Error('Unknown course');
