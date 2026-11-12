@@ -2223,6 +2223,7 @@
         <button class="chart-tab" onclick="switchChartTab('fng', this)">Fear & Greed</button>
         <button class="chart-tab" onclick="switchChartTab('ipo', this)">BTC vs Mega IPOs</button>
         <button class="chart-tab" onclick="switchChartTab('terminal', this)">Terminal Price</button>
+        <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
       </div>
 
       <!-- ── Bitcoin Terminal Price ── -->
@@ -2241,6 +2242,26 @@
             <strong style="color:var(--text);">How to read it:</strong> price near the red line = cycle-top territory, take profit; price at or under the orange line = generational buy zone;
             price under the green line = most holders are at a loss (bear-market accumulation). Drag across the chart to zoom, double-click or right-click to reset, click a name to hide it.
             Data: Coin Metrics (price, supply, MVRV → Realized Price) and BGeometrics (coin-days destroyed), refreshed every 12 hours. Daily coin-days data before Nov 2022 is not freely available, so Terminal and Balanced Price before that date are reconstructed: pinned to Into The Cryptoverse values on 24 Nov 2010, 3 Jul 2011, 6 Apr 2013, 19 Feb 2014 and 20 Nov 2017, and spread between them by price, supply and MVRV (about 3–5% accuracy). From Nov 2022 they are measured.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── BTC average mining cost (MARA) ── -->
+      <div class="chart-sub" id="chartSub-miningCost" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">💰 BTC: Avg. Mining Cost per BTC</span>
+            <span class="panel-badge">Daily price · Quarterly cost</span>
+          </div>
+          <div id="mc-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> BTC price (white) against what it costs MARA, the largest listed Bitcoin miner, to produce one bitcoin each quarter (purple):
+            energy, hosting, operating costs and equipment depreciation, divided by the bitcoin it mined. The dashed line is the latest reported quarter.<br>
+            <strong style="color:var(--text);">How to read it:</strong> the cost of production acts as a floor. When price trades far above it, miners are very profitable and the market is usually extended.
+            When price falls to or under it, miners are near break-even or losing money, weaker miners sell or shut down, and historically that zone has been a strong long-term buy area.
+            The cost jumps after each halving (April 2024), because the reward per block is cut in half. Hover to see the price-vs-cost margin on any day; drag to zoom, double-click or right-click to reset.
+            Data: quarterly cost from MARA's filings as charted by CryptoQuant (Q3 2026 = $62,862; earlier quarters read from the chart, within about $500); BTC price from Coin Metrics, refreshed every 12 hours.
+            A new quarter is added after MARA reports, about 5–6 weeks after the quarter ends.
           </p>
         </div>
       </div>
@@ -2983,6 +3004,7 @@
 <script src="ipo-chart.js?v=4"></script>
 <script src="onchain-terminal.js?v=20261110"></script>
 <script src="terminal-chart.js?v=2"></script>
+<script src="mining-cost-chart.js?v=1"></script>
 <script src="youtube.js?v=7"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
@@ -3177,6 +3199,7 @@
     if (tab === 'fng') drawFNG();
     if (tab === 'ipo' && window.LegionIPO) window.LegionIPO.draw();
     if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
+    if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
   };
 
   /* ── SUPPLY IN PROFIT / LOSS ── */
@@ -4847,6 +4870,8 @@
     reloadDataScript('onchain-terminal.js', function(){
       var r = document.getElementById('tp-root');
       if (r) { r.removeAttribute('data-ready'); if (r.offsetParent && window.LegionTerminal) window.LegionTerminal.draw(); }
+      var mc = document.getElementById('mc-root');
+      if (mc && window.LegionMiningCost) { window.LegionMiningCost.reset(); if (mc.offsetParent) window.LegionMiningCost.draw(); }
     });
     console.log('[auto-refresh] Chart data reloaded at', new Date().toLocaleTimeString());
   }
