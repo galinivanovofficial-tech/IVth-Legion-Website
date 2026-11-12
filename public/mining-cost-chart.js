@@ -35,6 +35,24 @@
     return { t, price, cost };
   }
 
+  // One row per quarter, newest first: cost, change vs the quarter before, average BTC price, price vs cost.
+  // The running quarter (not reported yet) shows its average price so far.
+  function quarterTable() {
+    const avg = (a, b) => { let s = 0, c = 0; S.t.forEach((t, i) => { if (t >= a && t < b && S.price[i] > 0) { s += S.price[i]; c++; } }); return c ? s / c : null; };
+    const pct = v => v == null ? '—' : `<span style="color:${v >= 0 ? '#4caf50' : '#ef5350'}">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+    const rows = COST.map((c, i) => {
+      const a = Date.parse(c[0]), b = quarterEnd(c[0]), ap = avg(a, b), prev = COST[i - 1];
+      return `<tr><td>${qLabel(c[0])}</td><td>${usd(c[1])}</td><td>${prev ? pct((c[1] / prev[1] - 1) * 100) : '—'}</td><td>${ap ? usd(ap) : '—'}</td><td>${ap ? pct((ap / c[1] - 1) * 100) : '—'}</td></tr>`;
+    });
+    const nextStart = quarterEnd(COST[COST.length - 1][0]), nowAvg = avg(nextStart, Infinity);
+    if (nowAvg) rows.push(`<tr style="opacity:.75"><td>${qLabel(nextStart)} <span class="ipo-dim">(running)</span></td><td colspan="2" class="ipo-dim">not reported yet: MARA reports after the quarter ends</td><td>${usd(nowAvg)} <span class="ipo-dim">so far</span></td><td>${pct((nowAvg / COST[COST.length - 1][1] - 1) * 100)} <span class="ipo-dim">vs last cost</span></td></tr>`);
+    const th = 'text-align:left;padding:6px 10px;color:var(--text-muted);font-weight:600;font-size:11px;border-bottom:1px solid rgba(255,255,255,.08);';
+    return `<div style="overflow-x:auto;margin:14px 0 4px;"><table class="mc-table" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr><th style="${th}">Quarter</th><th style="${th}">Mining cost per BTC</th><th style="${th}">Change vs previous quarter</th><th style="${th}">Avg. BTC price in quarter</th><th style="${th}">Price vs cost</th></tr></thead>
+      <tbody>${rows.reverse().join('')}</tbody></table></div>
+      <style>.mc-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}.mc-table tbody tr:hover{background:rgba(255,255,255,.03)}</style>`;
+  }
+
   function build() {
     root = document.getElementById('mc-root');
     if (!root || root.dataset.ready) return !!root;
@@ -51,7 +69,7 @@
         <div class="ipo-legend">
           <button class="ipo-key" data-key="price"><i style="background:${C_PRICE}"></i>BTC Price</button>
           <button class="ipo-key" data-key="cost"><i style="background:${C_COST}"></i>Avg. Mining Cost per BTC</button></div></div>
-      <div class="ipo-wrap" style="height:440px;"><canvas></canvas><div class="ipo-tip"></div></div>`;
+      <div class="ipo-wrap" style="height:440px;"><canvas></canvas><div class="ipo-tip"></div></div>${quarterTable()}`;
     canvas = root.querySelector('canvas'); tip = root.querySelector('.ipo-tip');
     root.querySelectorAll('.ipo-key').forEach(b => b.onclick = () => {
       const key = b.dataset.key; hidden.has(key) ? hidden.delete(key) : hidden.add(key);
