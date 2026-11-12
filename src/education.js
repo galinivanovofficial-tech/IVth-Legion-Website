@@ -77,7 +77,7 @@ const clean = s => s.replace(/\s+/g, ' ').trim();
 const SMALL = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'vs', 'with']);
 // ALL-CAPS headings read as shouting in a lesson UI; title-case them, keeping short acronyms.
 const titleCase = s => (s !== s.toUpperCase() ? s : s.toLowerCase().split(' ').map((w, i, all) => {
-  if (/^(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|r:r|bmsb|fomo|rsi|macd)$/.test(w)) return w.toUpperCase();
+  if (/^([ivxlc]+|r:r|bmsb|fomo|rsi|macd)$/.test(w)) return w.toUpperCase();
   const startsPhrase = i === 0 || /^[—–-]$/.test(all[i - 1]) || /:$/.test(all[i - 1]);
   return !startsPhrase && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1);
 }).join(' '));
@@ -305,6 +305,19 @@ function convert(def, html) {
     modules: used,
     glossary,
   };
+}
+
+// Build a course from HTML on disk instead of the Google Doc (scripts/import-course.js, fed by scripts/docx_to_html.py).
+export function importCourseHTML(id, html) {
+  const def = COURSES.find(c => c.id === id);
+  if (!def) throw new Error('Unknown course');
+  const next = convert(def, html);
+  if (!next.stats.lessons) throw new Error('No lessons found in the HTML');
+  const file = path.join(courseDir(id), 'course.json');
+  fs.writeFileSync(file + '.tmp', JSON.stringify(next));
+  fs.renameSync(file + '.tmp', file);
+  courses.set(id, next);
+  return next.stats;
 }
 
 export function syncCourse(id) {
