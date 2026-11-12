@@ -19,7 +19,7 @@ const COURSES = [
 const DIR = path.join(config.dataDir, 'education');
 const courseDir = id => path.join(DIR, id);
 const VOID = new Set(['img', 'br', 'hr', 'col', 'meta', 'link', 'input']);
-const CALLOUTS = [['IN PLAIN ENGLISH', 'plain'], ['KEY RULE', 'rule'], ['PRO TIP', 'tip'], ['WARNING', 'warn'], ['LIVE EXAMPLE', 'live']];
+const CALLOUTS = [['IN PLAIN ENGLISH', 'plain'], ['KEY RULE', 'rule'], ['PRO TIP', 'tip'], ['WARNING', 'warn'], ['LIVE EXAMPLE', 'live'], ['THE CALL', 'call']];
 const MODULE_RE = /^(ORIENTATION|PART\s+[0-9IVXLC]+|CHAPTER\s+\d+|REFERENCE|INTRODUCTION|CONCLUSION)\b\s*[:\-—–]?\s*(.*)$/i;
 
 db.exec(`
