@@ -161,6 +161,7 @@
       tzListeners.add(() => { if (this.root) { this.econ = this.earn = null; this.load(); this.side(); } });
       this.timers.push(setInterval(() => this.side(), 30000));
       this.timers.push(setInterval(() => { if (this.visible() && this.week === 0) this.load(true); }, 120000));
+      window.addEventListener('legion:flash', () => { if (this.week === 0) this.load(true); }); // new BLS number: refresh now
       this.load();
       this.side();
       Alerts.renderSettings();

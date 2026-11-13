@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { config } from './config.js';
+import { startFlash, registerFlashRoutes, overlayActuals } from './flash.js';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const TV_HEADERS = { 'User-Agent': UA, Origin: 'https://www.tradingview.com', Referer: 'https://www.tradingview.com/' };
@@ -67,7 +68,7 @@ function slimEvents(rows) {
   })).sort((a, b) => a.date.localeCompare(b.date) || b.importance - a.importance);
 }
 
-async function getCalendar(from, to) {
+export async function getCalendar(from, to) {
   const f = Math.floor(from / 3600000) * 3600000, t = Math.ceil(to / 3600000) * 3600000;
   // Around a scheduled release, re-poll every 10 s so the actual number reaches members quickly.
   const awaiting = rows => rows.some(e => {
@@ -444,6 +445,7 @@ async function keyDates() {
 }
 
 export function registerMacroRoutes(router) {
+  registerFlashRoutes(router);
   router.get('/api/macro/keydates', async (req, res) => {
     try { sendGz(req, res, { dates: await keyDates(), fetched: Date.now() }, 300); }
     catch (e) { console.error('[macro] keydates:', e.message); res.json(502, { error: 'Key dates are unavailable right now.' }); }
@@ -451,7 +453,7 @@ export function registerMacroRoutes(router) {
   router.get('/api/macro/calendar', async (req, res) => {
     const [r, err] = range(req, 16);
     if (err) return res.json(400, { error: err });
-    try { sendGz(req, res, { events: await getCalendar(...r), countries: CAL_COUNTRIES, fetched: Date.now() }, 60); }
+    try { sendGz(req, res, { events: overlayActuals(await getCalendar(...r)), countries: CAL_COUNTRIES, fetched: Date.now() }, 10); }
     catch (e) { console.error('[macro] calendar:', e.message); res.json(502, { error: 'Economic calendar is unavailable right now.' }); }
   });
   router.get('/api/macro/earnings', async (req, res) => {
@@ -467,6 +469,7 @@ export function registerMacroRoutes(router) {
 }
 
 export function startMacro() {
+  startFlash(getCalendar);
   if (Date.now() - store.updated > 3 * 3600000) setTimeout(refreshInBackground, 8000);
   setInterval(() => { fredStatus.lastAttempt = 0; refreshInBackground(); }, 3 * 3600000).unref();
 }
