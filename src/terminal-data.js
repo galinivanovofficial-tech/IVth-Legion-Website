@@ -55,10 +55,20 @@ export async function buildTerminal() {
   const [rows, { cdd, x0, reconTo }] = await Promise.all([coinMetrics(), cddSeries()]);
   if (!rows.length) throw new Error('no Coin Metrics rows');
   const r5 = v => (v == null || !isFinite(v) ? null : +v.toPrecision(5));
-  const o = { start: rows[0].d, end: rows[rows.length - 1].d, cddFrom: null, reconTo, price: [], realized: [], terminal: [], balanced: [] };
+  const o = { start: rows[0].d, end: rows[rows.length - 1].d, cddFrom: null, reconTo, price: [], realized: [], terminal: [], balanced: [], mvrv: [], mvrvz: [] };
+  // MVRV Z-Score = (market cap − realized cap) / standard deviation of market cap (all history up to that day).
+  // Blank for the first year, while the deviation rests on too few days to mean anything.
+  let zn = 0, sum = 0, sq = 0;
+  const z = r => {
+    const mc = r.p * r.s; zn++; sum += mc; sq += mc * mc;
+    const sd = Math.sqrt(Math.max(0, sq / zn - (sum / zn) ** 2));
+    o.mvrv.push(+r.mv.toFixed(3));
+    o.mvrvz.push(zn > 365 && sd > 0 ? +((mc - mc / r.mv) / sd).toFixed(3) : null);
+  };
   // x0 = value-days destroyed before the CDD history starts (calibrated), so the sum is anchored correctly
   let X = x0 ? x0.value : 0, gap = 0;
   for (const r of rows) {
+    z(r);
     const realized = r.p / r.mv;
     if (x0 && r.d <= x0.through) { o.price.push(r5(r.p)); o.realized.push(r5(realized)); o.terminal.push(null); o.balanced.push(null); continue; }
     const c = cdd[r.d];
@@ -71,6 +81,6 @@ export async function buildTerminal() {
   }
   fs.writeFileSync(OUT, `window.LEGION_TERMINAL=${JSON.stringify(o)};\n`);
   const n = o.price.length - 1;
-  console.log(`[data] onchain-terminal.js updated — ${o.end}: terminal ${o.terminal[n]}, realized ${o.realized[n]}, balanced ${o.balanced[n]} (days without CDD: ${gap})`);
+  console.log(`[data] onchain-terminal.js updated — ${o.end}: terminal ${o.terminal[n]}, realized ${o.realized[n]}, balanced ${o.balanced[n]}, MVRV Z ${o.mvrvz[n]} (days without CDD: ${gap})`);
   return o;
 }

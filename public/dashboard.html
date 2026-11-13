@@ -2272,6 +2272,7 @@
         <button class="chart-tab" onclick="switchChartTab('fng', this)">Fear & Greed</button>
         <button class="chart-tab" onclick="switchChartTab('ipo', this)">BTC vs Mega IPOs</button>
         <button class="chart-tab" onclick="switchChartTab('terminal', this)">Terminal Price</button>
+        <button class="chart-tab" onclick="switchChartTab('mvrvz', this)">MVRV Z-Score</button>
         <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
       </div>
 
@@ -2291,6 +2292,27 @@
             <strong style="color:var(--text);">How to read it:</strong> price near the red line = cycle-top territory, take profit; price at or under the orange line = generational buy zone;
             price under the green line = most holders are at a loss (bear-market accumulation). Drag across the chart to zoom, double-click or right-click to reset, click a name to hide it.
             Data: Coin Metrics (price, supply, MVRV → Realized Price) and BGeometrics (coin-days destroyed), refreshed every 12 hours. Daily coin-days data before Nov 2022 is not freely available, so Terminal and Balanced Price before that date are reconstructed: pinned to Into The Cryptoverse values on 24 Nov 2010, 3 Jul 2011, 6 Apr 2013, 19 Feb 2014 and 20 Nov 2017, and spread between them by price, supply and MVRV (about 3–5% accuracy). From Nov 2022 they are measured.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── MVRV Z-Score ── -->
+      <div class="chart-sub" id="chartSub-mvrvz" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🌡️ MVRV Z-Score</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="mvz-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> how far Bitcoin's market value has run above or below its realized value (the price every coin last moved at), measured in standard deviations.
+            MVRV Z-Score = (Market Cap − Realized Cap) ÷ standard deviation of Market Cap over all history up to that day.<br>
+            <strong style="color:var(--text);">How to read it:</strong>
+            <strong style="color:#ef5350;">above 7</strong> = price far above holders' cost basis, the zone of the 2013, 2017 and early-2021 cycle tops;
+            <strong style="color:#26a69a;">below 0</strong> = market value under realized value, most holders at a loss, the zone of every cycle bottom (2015, 2018, 2020, 2022).
+            Each cycle has peaked lower (10.7 in Apr 2013, 10.1 in Dec 2017, 7.2 in Feb 2021, 3.7 in Oct 2021 and 3.4 in Dec 2024), so treat 3+ as overheated rather than waiting for 7.
+            The top pane is shaded where the Z-score sat in a zone, so you can see what price did there. Drag across the chart to zoom, double-click or right-click to reset.
+            Data: Coin Metrics (price, supply, MVRV), refreshed every 12 hours; values match BGeometrics' MVRV Z-Score.
           </p>
         </div>
       </div>
@@ -3050,8 +3072,9 @@
 <script src="data-roi.js?v=20260914b"></script>
 <script src="data-fng.js?v=20260914b"></script>
 <script src="ipo-chart.js?v=4"></script>
-<script src="onchain-terminal.js?v=20261110"></script>
+<script src="onchain-terminal.js?v=20261113"></script>
 <script src="terminal-chart.js?v=2"></script>
+<script src="mvrvz-chart.js?v=2"></script>
 <script src="mining-cost.js?v=20261112"></script>
 <script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>
@@ -3249,6 +3272,7 @@
     if (tab === 'fng') drawFNG();
     if (tab === 'ipo' && window.LegionIPO) window.LegionIPO.draw();
     if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
+    if (tab === 'mvrvz' && window.LegionMVRVZ) window.LegionMVRVZ.draw();
     if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
   };
 
@@ -4920,6 +4944,8 @@
     reloadDataScript('onchain-terminal.js', function(){
       var r = document.getElementById('tp-root');
       if (r) { r.removeAttribute('data-ready'); if (r.offsetParent && window.LegionTerminal) window.LegionTerminal.draw(); }
+      var mz = document.getElementById('mvz-root');
+      if (mz) { mz.removeAttribute('data-ready'); if (mz.offsetParent && window.LegionMVRVZ) window.LegionMVRVZ.draw(); }
     });
     reloadDataScript('mining-cost.js', function(){
       var mc = document.getElementById('mc-root');
