@@ -280,7 +280,7 @@ window.LegionEducation = (function () {
     const outline = l.sections.length
       ? `<div class="edu-outline"><div class="edu-outline-head">In this lesson</div><ol>${l.sections.map(s => `<li><a data-anchor="${s.id}">${esc(s.title)}</a></li>`).join('')}</ol></div>`
       : '';
-    const rules = l.keyRules.length
+    const rules = l.keyRules.length > 1
       ? `<div class="edu-recap"><div class="edu-recap-head">🔑 Key rules from this lesson</div><ul>${l.keyRules.map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>`
       : '';
     const navCard = (x, dir) => x
