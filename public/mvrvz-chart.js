@@ -37,6 +37,7 @@
         </div></div>
       <div class="ipo-wrap" style="height:520px;"><canvas></canvas><div class="ipo-tip"></div></div>`;
     canvas = root.querySelector('canvas'); tip = root.querySelector('.ipo-tip');
+    explain();
     canvas.addEventListener('mousedown', e => { drag = { x0: e.offsetX, x1: e.offsetX }; });
     canvas.addEventListener('mousemove', e => { if (drag) { drag.x1 = e.offsetX; draw(); } hover(e.offsetX); });
     canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; drag = null; draw(); });
@@ -52,6 +53,38 @@
     canvas.addEventListener('dblclick', reset);
     window.addEventListener('resize', () => { if (root.offsetParent) draw(); });
     return true;
+  }
+
+  // Formula, what the name means, and a worked example with the latest day's real numbers.
+  function explain() {
+    const box = document.getElementById('mvz-explain'), e = D.zLast;
+    if (!box) return;
+    const T = v => '$' + (v / 1e12).toFixed(3) + 'T', Bn = v => '$' + Math.round(v / 1e9).toLocaleString('en-US') + 'B';
+    const z = e ? (e.mc - e.rc) / e.sd : null;
+    const day = e ? new Date(e.d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '';
+    box.innerHTML = `
+      <h4>What MVRV Z-Score stands for</h4>
+      <p><b>MVRV</b> = <b>M</b>arket <b>V</b>alue to <b>R</b>ealized <b>V</b>alue: what Bitcoin is worth at today's price, compared with what holders actually paid for their coins.
+      <b>Z-Score</b> = how many standard deviations a number sits away from normal. Together: how unusually far the market has run above (or below) holders' cost, compared with all of Bitcoin's history.</p>
+      <div class="mvz-eq">MVRV Z = <span class="frac"><span>Market Cap − Realized Cap</span><span>σ (Market Cap)</span></span></div>
+      <ul>
+        <li><b>Market Cap</b> = Price × Supply: every coin valued at today's price.</li>
+        <li><b>Realized Cap</b> = every coin valued at the price it last moved, i.e. roughly what holders paid. Coin Metrics gives MVRV, so Realized Cap = Market Cap ÷ MVRV.</li>
+        <li><b>σ (Market Cap)</b> = the standard deviation of every daily Market Cap from July 2010 up to that day: the typical size of Bitcoin's swings in value. It turns a dollar gap into “how unusual”, so 2013 and today sit on one scale.</li>
+      </ul>
+      <p><b>“How many standard deviations” in plain words:</b> σ is a measuring stick, one “typical swing”${e ? ` (today ${'$' + Math.round(e.sd / 1e9).toLocaleString('en-US')}B)` : ''}.
+      The Z-score counts how many of those sticks fit into the gap between market value and holders' cost.
+      Z = 0: price equals holders' average cost. Z = 1: the market is one typical swing above it, which is normal in a bull market.
+      Z = 7: seven typical swings above it, an extreme that has only happened at cycle tops. Below 0: the market is worth less than holders paid, which has only happened at cycle bottoms.</p>` + (e ? `
+      <h4 style="margin-top:14px;">Worked example: ${day}</h4>
+      <table class="mvz-steps">
+        <tr><td>1. Market Cap</td><td>$${Math.round(e.price).toLocaleString('en-US')} × ${e.supply.toLocaleString('en-US')} BTC</td><td>${T(e.mc)}</td></tr>
+        <tr><td>2. Realized Cap</td><td>${T(e.mc)} ÷ MVRV ${e.mvrv.toFixed(4)}</td><td>${T(e.rc)}</td></tr>
+        <tr><td>3. Gap above holders' cost</td><td>${T(e.mc)} − ${T(e.rc)}</td><td>${Bn(e.mc - e.rc)}</td></tr>
+        <tr><td>4. σ (Market Cap)</td><td>standard deviation of ${e.days.toLocaleString('en-US')} daily values since Jul 2010</td><td>${Bn(e.sd)}</td></tr>
+        <tr class="res"><td>5. MVRV Z-Score</td><td>${Bn(e.mc - e.rc)} ÷ ${Bn(e.sd)}</td><td>${z.toFixed(2)}</td></tr>
+      </table>
+      <p style="margin:8px 0 0;">${z.toFixed(2)} = <b>${zone(z)}</b>. For scale: the 2017 top reached 10.1 and the 2022 bottom −0.36.</p>` : '');
   }
 
   const idxAt = x => { const g = geo; return Math.max(g.i0, Math.min(g.i1, Math.round(g.i0 + (x - g.L) / g.pw * (g.i1 - g.i0)))); };

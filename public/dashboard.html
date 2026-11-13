@@ -1945,6 +1945,20 @@
 .fl-rows i{font-style:normal;opacity:.65}.fl-exp{opacity:.55;font-size:12px}
 @keyframes flpulse{50%{opacity:.3}}
 @media(max-width:600px){.fl-time{margin-left:0}}
+/* MVRV Z-Score formula box */
+.mvz-explain{margin:0 16px 18px;border:1px solid rgba(227,201,107,.25);border-radius:10px;padding:14px 16px;background:rgba(227,201,107,.04);font-size:13px;line-height:1.55;color:var(--text-dim,#a6abbd);overflow:hidden;min-width:0}
+.mvz-explain h4{margin:0 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#e3c96b}
+.mvz-explain p{margin:0 0 6px}
+.mvz-explain b{color:var(--text,#e6e8ee)}
+.mvz-eq{margin:12px 0;padding:12px;border-radius:8px;background:rgba(0,0,0,.25);text-align:center;font-size:15px;color:var(--text,#e6e8ee);overflow-x:auto;white-space:nowrap}
+.mvz-eq .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin-left:6px}
+.mvz-eq .frac span:first-child{border-bottom:1px solid currentColor;padding:0 6px 3px}.mvz-eq .frac span:last-child{padding:3px 6px 0}
+.mvz-explain ul{margin:6px 0 4px;padding-left:18px}
+.mvz-steps{width:100%;border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums}
+.mvz-steps td{padding:6px 8px;border-top:1px solid rgba(255,255,255,.06);vertical-align:top}
+.mvz-steps td:last-child{text-align:right;white-space:nowrap;color:var(--text,#e6e8ee);font-weight:600}
+.mvz-steps tr.res td{border-top:1px solid rgba(227,201,107,.4);color:#e3c96b;font-size:14px}
+@media(max-width:600px){.mvz-steps td:nth-child(2){display:none}.mvz-explain{margin:0 10px 14px;padding:12px}.mvz-eq{font-size:13px;padding:10px 6px}}
 </style>
 </head>
 <body>
@@ -2305,8 +2319,7 @@
           </div>
           <div id="mvz-root" class="ipo-root"></div>
           <p class="chart-note" style="margin:4px 16px 16px;">
-            <strong style="color:var(--text);">What it shows:</strong> how far Bitcoin's market value has run above or below its realized value (the price every coin last moved at), measured in standard deviations.
-            MVRV Z-Score = (Market Cap − Realized Cap) ÷ standard deviation of Market Cap over all history up to that day.<br>
+            <strong style="color:var(--text);">What it shows:</strong> how far Bitcoin's market value has run above or below its realized value (the price every coin last moved at), measured in standard deviations. The formula and a worked example are below.<br>
             <strong style="color:var(--text);">How to read it:</strong>
             <strong style="color:#ef5350;">above 7</strong> = price far above holders' cost basis, the zone of the 2013, 2017 and early-2021 cycle tops;
             <strong style="color:#26a69a;">below 0</strong> = market value under realized value, most holders at a loss, the zone of every cycle bottom (2015, 2018, 2020, 2022).
@@ -2314,6 +2327,7 @@
             The top pane is shaded where the Z-score sat in a zone, so you can see what price did there. Drag across the chart to zoom, double-click or right-click to reset.
             Data: Coin Metrics (price, supply, MVRV), refreshed every 12 hours; values match BGeometrics' MVRV Z-Score.
           </p>
+          <div id="mvz-explain" class="mvz-explain"></div>
         </div>
       </div>
 
@@ -3074,7 +3088,7 @@
 <script src="ipo-chart.js?v=4"></script>
 <script src="onchain-terminal.js?v=20261113"></script>
 <script src="terminal-chart.js?v=2"></script>
-<script src="mvrvz-chart.js?v=2"></script>
+<script src="mvrvz-chart.js?v=4"></script>
 <script src="mining-cost.js?v=20261112"></script>
 <script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>

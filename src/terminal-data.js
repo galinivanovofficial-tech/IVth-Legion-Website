@@ -64,6 +64,7 @@ export async function buildTerminal() {
     const sd = Math.sqrt(Math.max(0, sq / zn - (sum / zn) ** 2));
     o.mvrv.push(+r.mv.toFixed(3));
     o.mvrvz.push(zn > 365 && sd > 0 ? +((mc - mc / r.mv) / sd).toFixed(3) : null);
+    o.zLast = { d: r.d, price: r.p, supply: Math.round(r.s), mvrv: r.mv, mc, rc: mc / r.mv, sd, days: zn }; // worked example on the site
   };
   // x0 = value-days destroyed before the CDD history starts (calibrated), so the sum is anchored correctly
   let X = x0 ? x0.value : 0, gap = 0;
