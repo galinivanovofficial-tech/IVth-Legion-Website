@@ -433,11 +433,11 @@ async function getYtdRoi(asset) {
   });
 }
 
-// ---------- BTC daily closes (Bitstamp, from 2018) for the "BTC around mega IPOs" chart ----------
+// ---------- BTC daily closes (Bitstamp, from 2013) for the mega-IPO and government-shutdown charts ----------
 async function getBtcDaily() {
   return cached('btc:daily', 6 * 3600, async () => {
     const out = [];
-    let start = Math.floor(Date.UTC(2018, 0, 1) / 1000);
+    let start = Math.floor(Date.UTC(2013, 0, 1) / 1000);
     const end = Math.floor(Date.now() / 1000);
     while (start < end) {
       const d = await fetchJSON(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit=1000&start=${start}`);
