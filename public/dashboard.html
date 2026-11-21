@@ -2291,6 +2291,7 @@ div.ipo-note p{margin:0 0 8px}
         <button class="chart-tab" onclick="switchChartTab('shutdown', this)">BTC vs Gov Shutdowns</button>
         <button class="chart-tab" onclick="switchChartTab('terminal', this)">Terminal Price</button>
         <button class="chart-tab" onclick="switchChartTab('mvrvz', this)">MVRV Z-Score</button>
+        <button class="chart-tab" onclick="switchChartTab('ethreg', this)">ETH Regression Bands</button>
         <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
       </div>
 
@@ -2315,6 +2316,25 @@ div.ipo-note p{margin:0 0 8px}
       </div>
 
       <!-- ── MVRV Z-Score ── -->
+      <div class="chart-sub" id="chartSub-ethreg" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">📐 ETH Logarithmic Regression Bands</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="ethreg-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> Ethereum's long-term growth curve. Price is on a log scale and the bands rise more slowly each year, because ETH's growth slows as it matures. The bands are drawn two years ahead.<br>
+            <strong style="color:var(--text);">How to read it:</strong>
+            <strong style="color:#2ecc71;">green channel</strong> = ETH's long-term floor: price has spent most of 2017–2025 above it, and closed below it only in March 2020 and November 2026;
+            <strong style="color:#00c2ff;">blue band</strong> = the extreme low, drawn through the deepest drop in ETH's history (13 Mar 2020 wick, $88.20); price has never closed below it;
+            <strong style="color:#ef5350;">red band</strong> = the extreme high, drawn through the current cycle's top. Past tops reached higher bands each earlier cycle.
+            Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.
+          </p>
+          <div id="ethreg-explain" class="mvz-explain"></div>
+        </div>
+      </div>
+
       <div class="chart-sub" id="chartSub-mvrvz" style="display:none;">
         <div class="panel">
           <div class="panel-header">
@@ -3104,6 +3124,7 @@ div.ipo-note p{margin:0 0 8px}
 <script src="onchain-terminal.js?v=20261113"></script>
 <script src="terminal-chart.js?v=2"></script>
 <script src="mvrvz-chart.js?v=4"></script>
+<script src="eth-regression-chart.js?v=1"></script>
 <script src="mining-cost.js?v=20261112"></script>
 <script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>
@@ -3303,6 +3324,7 @@ div.ipo-note p{margin:0 0 8px}
     if (tab === 'shutdown' && window.LegionShutdown) window.LegionShutdown.draw();
     if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
     if (tab === 'mvrvz' && window.LegionMVRVZ) window.LegionMVRVZ.draw();
+    if (tab === 'ethreg' && window.LegionETHReg) window.LegionETHReg.draw();
     if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
   };
 

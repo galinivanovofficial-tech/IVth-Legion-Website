@@ -382,6 +382,8 @@ const INDICATORS = [
     what: 'Draws Bitcoin\'s price as dots coloured by its 0–1 risk: blue = low risk (accumulate), red = high risk (take profit). Always reads Bitcoin, whatever chart is open (course 9.4).' },
   { id: 'btc-aqr', name: 'BTC Quantile Regression (AQR)', tag: 'Bitcoin', chart: 'BTC · daily or weekly chart, log scale',
     what: 'Seven long-term price bands for Bitcoin, from the historic floor (Q1) to the speculative top (Q99). Shows how cheap or expensive BTC is against its whole history (course 9.1).' },
+  { id: 'eth-log-regression', name: 'ETH Log Regression Bands', tag: 'Ethereum', chart: 'ETH · daily or weekly chart, log scale',
+    what: 'Ethereum\'s long-term regression channel (green) plus two extreme bands: blue through the deepest low in ETH\'s history (Mar 2020, $88) and red through the current-cycle top. ETH has closed below the green channel only in Mar 2020 and Nov 2026. Same model as the ETH Regression Bands chart on the Charts page.' },
 ];
 const indicatorFile = id => new URL(`./indicators/${id}.pine`, import.meta.url); // a file URL: safe with spaces in the path
 

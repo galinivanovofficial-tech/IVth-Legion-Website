@@ -1,0 +1,73 @@
+// IVth Legion — ETH Logarithmic Regression Bands (with extreme bands)
+//
+// The classic ETH log-regression channel plus two extreme bands:
+//   price = 10 ^ (a * ln(x) - b),   x = days since 21 Jan 2015,   b = 7.847387532
+//
+//   Extreme high  a = 1.4125   through the current-cycle top (12 Mar 2024, $4,095)
+//   Upper         a = 1.364138846
+//   Middle        a = 1.344138846
+//   Lower         a = 1.324138846
+//   Extreme low   a = 1.2994   through the deepest low in ETH's history (13 Mar 2020 wick, $88.20),
+//                              ~35% under the lower band that day; no other day has gone below it
+//
+// Reading it: ETH spent most of 2017-2025 ABOVE the channel, so the green channel acts as a
+// long-term floor. ETH has closed below the lower band only in March 2020 and November 2026.
+// Tops reach a lower slope every cycle (1.573 in 2018, 1.484 in 2021, 1.412 in 2024), so the
+// extreme high band follows the current cycle; earlier tops sit above it.
+//
+// The bands depend only on the date, so they look the same on any symbol and timeframe.
+// Use it on ETHUSD, log scale, daily or weekly.
+// If you already run the community "Ethereum Logarithmic Regression Bands", turn off
+// "Draw the classic channel" so only the two extreme bands are added.
+//
+//@version=5
+indicator("IVth Legion ETH Log Regression Bands", shorttitle="IVL ETH LogReg", overlay=true)
+
+showMain = input.bool(true, "Draw the classic channel (lower / middle / upper)")
+showXLo  = input.bool(true, "Draw the extreme LOW band")
+aXLo     = input.float(1.2994, "Extreme low slope a", step=0.0005, tooltip="1.2994 = band through the March 2020 low ($88.20). Lower it to push the band down.")
+showXHi  = input.bool(true, "Draw the extreme HIGH band")
+aXHi     = input.float(1.4125, "Extreme high slope a", step=0.0005, tooltip="1.4125 = band through the March 2024 top ($4,095). 1.484 reaches the 2021 top, 1.573 the 2018 top.")
+B        = input.float(7.847387532, "Intercept b", step=0.001)
+showTbl  = input.bool(true, "Show table")
+
+origin = timestamp("UTC", 2015, 1, 21, 0, 0)
+xDays  = (time - origin) / 86400000.0
+lnx    = xDays > 1 ? math.log(xDays) : na
+band(a) => math.pow(10, a * lnx - B)
+
+xhi = band(aXHi)
+hi  = band(1.364138846)
+mid = band(1.344138846)
+lo  = band(1.324138846)
+xlo = band(aXLo)
+
+cGreen = color.new(#2ecc71, 0)
+pXhi = plot(showXHi ? xhi : na, "Extreme high band", color=#ef5350, linewidth=2)
+pHi  = plot(hi, "Upper band", color=showMain ? cGreen : na)
+plot(showMain ? mid : na, "Middle band", color=color.new(#2ecc71, 45))
+pLo  = plot(lo, "Lower band", color=showMain ? cGreen : na)
+pXlo = plot(showXLo ? xlo : na, "Extreme low band", color=#00c2ff, linewidth=2)
+fill(pHi, pLo, color=showMain ? color.new(#2ecc71, 88) : na, title="Channel")
+fill(pXhi, pHi, color=color.new(#ef5350, 92), title="Extreme high zone")
+fill(pLo, pXlo, color=color.new(#00c2ff, 88), title="Extreme low zone")
+
+fmt(v) => (v >= 0 ? "+" : "") + str.tostring(v, "#.0") + "%"
+usd(v) => "$" + str.tostring(v, v >= 1000 ? "#,###" : "#.##")
+var table tb = table.new(position.bottom_right, 3, 6, bgcolor=color.new(#0d0d18, 10), border_color=color.new(#ffffff, 85), border_width=1)
+if showTbl and barstate.islast
+    table.cell(tb, 0, 0, "Band", text_color=color.silver, text_size=size.small)
+    table.cell(tb, 1, 0, "Today", text_color=color.silver, text_size=size.small)
+    table.cell(tb, 2, 0, "Price vs band", text_color=color.silver, text_size=size.small)
+    names = array.from("Extreme high", "Upper", "Middle", "Lower", "Extreme low")
+    vals = array.from(xhi, hi, mid, lo, xlo)
+    cols = array.from(#ef5350, #2ecc71, #2ecc71, #2ecc71, #00c2ff)
+    for i = 0 to 4
+        v = array.get(vals, i)
+        table.cell(tb, 0, i + 1, array.get(names, i), text_color=array.get(cols, i), text_size=size.small)
+        table.cell(tb, 1, i + 1, usd(v), text_color=color.white, text_size=size.small)
+        table.cell(tb, 2, i + 1, fmt((close / v - 1) * 100), text_color=color.white, text_size=size.small)
+
+alertcondition(ta.crossunder(close, lo), "ETH closed below the lower band", "ETH closed below the lower regression band")
+alertcondition(ta.crossunder(low, xlo), "ETH touched the extreme low band", "ETH traded down to the extreme low regression band")
+alertcondition(ta.crossover(high, xhi), "ETH touched the extreme high band", "ETH traded up to the extreme high regression band")

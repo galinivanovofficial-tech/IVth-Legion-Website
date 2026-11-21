@@ -455,6 +455,32 @@ async function getBtcDaily() {
   });
 }
 
+// ---------- ETH daily [date, high, low, close] for the ETH log-regression chart ----------
+// Coin Metrics closes before Bitstamp's ETH market opened (Aug 2017), Bitstamp OHLC after it (keeps real wicks, e.g. $88.20 on 13 Mar 2020).
+async function getEthDaily() {
+  return cached('eth:daily', 6 * 3600, async () => {
+    const out = [];
+    const cm = await fetchJSON('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=eth&metrics=PriceUSD&frequency=1d&page_size=10000&start_time=2015-08-07&end_time=2017-08-15');
+    for (const r of cm?.data || []) { const c = parseFloat(r.PriceUSD); if (c > 0) out.push([r.time.slice(0, 10), c, c, c]); }
+    let start = Math.floor(Date.UTC(2017, 7, 16) / 1000);
+    const end = Math.floor(Date.now() / 1000);
+    while (start < end) {
+      const d = await fetchJSON(`https://www.bitstamp.net/api/v2/ohlc/ethusd/?step=86400&limit=1000&start=${start}`);
+      const bars = d?.data?.ohlc || [];
+      if (!bars.length) break;
+      for (const b of bars) {
+        const ts = Number(b.timestamp), h = parseFloat(b.high), l = parseFloat(b.low), c = parseFloat(b.close);
+        if (ts && c > 0) out.push([new Date(ts * 1000).toISOString().slice(0, 10), h, l, c]);
+      }
+      start = Number(bars[bars.length - 1].timestamp) + 86400;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    if (out.length < 3000) throw new Error('ETH history incomplete (' + out.length + ' days)');
+    const seen = new Set();
+    return out.filter(([d]) => !seen.has(d) && seen.add(d));
+  });
+}
+
 // ---------- YouTube: latest uploads of the Galin IVNV channel (public RSS feed, no API key, 15 newest) ----------
 const YT_CHANNEL = { id: 'UCsnbRriY3NlDJiYylQOP6zw', handle: '@galin_ivnv', name: 'Galin IVNV' };
 async function getYouTube() {
@@ -483,6 +509,10 @@ export function registerMarketRoutes(router) {
   router.get('/api/markets/btc-daily', async (req, res) => {
     try { res.json(200, { days: await getBtcDaily() }); }
     catch (e) { console.error('[markets] btc-daily:', e.message); res.json(502, { error: 'BTC history unavailable' }); }
+  });
+  router.get('/api/markets/eth-daily', async (req, res) => {
+    try { res.json(200, { days: await getEthDaily() }); }
+    catch (e) { console.error('[markets] eth-daily:', e.message); res.json(502, { error: 'ETH history unavailable' }); }
   });
   router.get('/api/markets/fng', async (req, res) => {
     try { res.json(200, await getFearGreed()); }
