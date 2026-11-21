@@ -1,40 +1,41 @@
-// IVth Legion — ETH Cycle Bands (logarithmic regression, fitted to ETH's real cycle extremes)
+// IVth Legion — ETH Cycle Bands (logarithmic regression, fitted to ETH's real cycle tops and lows)
 //
-// Same formula as the classic ETH log regression:
-//   price = 10 ^ (a * ln(x) - b),   x = days since 21 Jan 2015,   b = 7.847387532
+// Each line:  price = 10 ^ (a * ln(x) + c),   x = days since 21 Jan 2015
+// The two lines of a band share the same slope a, so the band keeps the same width over time.
+// For every slope we pushed the two lines as close together as possible while still holding every
+// cycle top (red) or every cycle low (green), and kept the narrowest band.
 //
-// For every cycle top and bear-market low we solved for the slope a of the band that passes
-// exactly through it:
-//   Lows   Dec 2018 1.3435 · Mar 2020 1.2991 · Jun 2022 1.3656 · Apr 2025 1.3361 · Nov 2026 1.3180
-//   Tops   Jan 2018 1.5732 · May 2021 1.4840 · Nov 2021 1.4754 · Mar 2024 1.4125 · Aug 2025 1.3973
+//   Top band (red)      a = 0.428   c = +0.1596 .. +0.3413   (1.52x wide)
+//     lower edge through the Jan 2018 ($1,420) and Aug 2025 ($4,955) tops,
+//     upper edge through the Nov 2021 top ($4,869); ETH has never traded above it since 2016
+//   Bottom band (green) a = 1.448   c = -8.9695 .. -8.4989   (2.96x wide)
+//     lower edge through the 13 Mar 2020 wick ($88.20), no day in ETH's history traded below it;
+//     upper edge through the 2015 and Jun 2022 ($880) lows
 //
-//   Bottom band (green)  a = 1.2991 .. 1.3656   Mar 2020 wick ($88.20) .. Jun 2022 low ($880)
-//                        every bear-market low since 2018 landed inside it
-//   Top band (red)       a = 1.3973 .. 1.4840   Aug 2025 top ($4,955) .. May 2021 top ($4,381)
-//                        every top since 2021 is inside it; only the 2017-18 bubble went above
-//
-// Tops reach a lower slope every cycle (diminishing returns), lows do not, so the top band covers
-// the last two cycles. The bands depend only on the date: use it on ETHUSD, log scale, daily or weekly.
+// Tops have flattened since 2021 while the lows keep rising, so the bands squeeze together and
+// meet around May 2028: ETH's cycle range is getting tighter.
+// The bands depend only on the date: use it on ETHUSD, log scale, daily or weekly.
 //
 //@version=5
 indicator("IVth Legion ETH Cycle Bands", shorttitle="IVL ETH Cycle", overlay=true)
 
-aTopHi = input.float(1.4840, "Top band, upper slope a", step=0.0005, tooltip="1.4840 = through the May 2021 top. 1.573 reaches the 2018 top.")
-aTopLo = input.float(1.3973, "Top band, lower slope a", step=0.0005, tooltip="1.3973 = through the Aug 2025 top ($4,955).")
-aBotHi = input.float(1.3656, "Bottom band, upper slope a", step=0.0005, tooltip="1.3656 = through the Jun 2022 low ($880).")
-aBotLo = input.float(1.2991, "Bottom band, lower slope a", step=0.0005, tooltip="1.2991 = through the Mar 2020 wick ($88.20), the deepest low ever.")
-B      = input.float(7.847387532, "Intercept b", step=0.001)
+aTop   = input.float(0.428, "Top band slope a", step=0.001)
+cTopHi = input.float(0.3413, "Top band upper c", step=0.001, tooltip="+0.3413 = through the Nov 2021 top")
+cTopLo = input.float(0.1596, "Top band lower c", step=0.001, tooltip="+0.1596 = through the Jan 2018 and Aug 2025 tops")
+aBot   = input.float(1.448, "Bottom band slope a", step=0.001)
+cBotHi = input.float(-8.4989, "Bottom band upper c", step=0.001, tooltip="-8.4989 = through the 2015 and Jun 2022 lows")
+cBotLo = input.float(-8.9695, "Bottom band lower c", step=0.001, tooltip="-8.9695 = through the Mar 2020 wick ($88.20)")
 showTbl = input.bool(true, "Show table")
 
 origin = timestamp("UTC", 2015, 1, 21, 0, 0)
 xDays  = (time - origin) / 86400000.0
 lnx    = xDays > 1 ? math.log(xDays) : na
-band(a) => math.pow(10, a * lnx - B)
+bandAt(a, c) => math.pow(10, a * lnx + c)
 
-tHi = band(aTopHi)
-tLo = band(aTopLo)
-bHi = band(aBotHi)
-bLo = band(aBotLo)
+tHi = bandAt(aTop, cTopHi)
+tLo = bandAt(aTop, cTopLo)
+bHi = bandAt(aBot, cBotHi)
+bLo = bandAt(aBot, cBotLo)
 
 cRed = #ef5350
 cGrn = #2ecc71
@@ -42,7 +43,7 @@ p1 = plot(tHi, "Top band, upper", color=cRed)
 p2 = plot(tLo, "Top band, lower", color=cRed)
 p3 = plot(bHi, "Bottom band, upper", color=cGrn)
 p4 = plot(bLo, "Bottom band, lower", color=cGrn)
-fill(p1, p2, color=color.new(cRed, 85), title="Top band")
+fill(p1, p2, color=color.new(cRed, 82), title="Top band")
 fill(p3, p4, color=color.new(cGrn, 85), title="Bottom band")
 
 zone = close > tHi ? "Above the top band" : close >= tLo ? "Inside the top band" : close > bHi ? "Between the bands" : close >= bLo ? "Inside the bottom band" : "Below the bottom band"
@@ -65,6 +66,6 @@ if showTbl and barstate.islast
     table.cell(tb, 0, 5, zone, text_color=zoneCol, text_size=size.small)
     table.merge_cells(tb, 0, 5, 2, 5)
 
-alertcondition(ta.crossunder(low, bHi), "ETH entered the bottom band", "ETH traded down into the green bottom band (bear-market low zone)")
+alertcondition(ta.crossunder(low, bHi), "ETH entered the bottom band", "ETH traded down into the green bottom band (cycle-low zone)")
 alertcondition(ta.crossover(high, tLo), "ETH entered the top band", "ETH traded up into the red top band (cycle-top zone)")
 alertcondition(ta.crossunder(low, bLo), "ETH below the bottom band", "ETH traded below the bottom band, lower than any day in its history")

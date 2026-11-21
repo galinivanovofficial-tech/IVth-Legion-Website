@@ -385,7 +385,7 @@ const INDICATORS = [
   { id: 'eth-log-regression', name: 'ETH Log Regression Bands', tag: 'Ethereum', chart: 'ETH · daily or weekly chart, log scale',
     what: 'Ethereum\'s long-term regression channel (green) plus two extreme bands: blue through the deepest low in ETH\'s history (Mar 2020, $88) and red through the current-cycle top. ETH has closed below the green channel only in Mar 2020 and Nov 2026. Same model as the ETH Regression Bands chart on the Charts page.' },
   { id: 'eth-cycle-bands', name: 'ETH Cycle Bands', tag: 'Ethereum', chart: 'ETH · daily or weekly chart, log scale',
-    what: 'The ETH regression model with two bands fitted to real cycle extremes. Green bottom band: every bear-market low since 2018 landed inside it (Dec 2018, Mar 2020, Jun 2022, Apr 2025, Nov 2026). Red top band: every top since 2021 is inside it. Same as the "Cycle bands" model on the ETH Regression Bands chart.' },
+    what: 'Two log-regression bands fitted to ETH\'s real extremes: the narrowest red band that holds every cycle top (2018, 2021, 2025) and the narrowest green band that holds every cycle low (2015, 2016, 2018, Mar 2020, 2022, 2025, 2026). The bands squeeze together over time as ETH\'s cycles get tighter. Same as the "Cycle bands" model on the ETH Regression Bands chart.' },
 ];
 const indicatorFile = id => new URL(`./indicators/${id}.pine`, import.meta.url); // a file URL: safe with spaces in the path
 
