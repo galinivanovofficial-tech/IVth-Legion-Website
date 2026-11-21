@@ -39,37 +39,37 @@
         Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.`,
     },
     cyc: {
-      // Recreates CryptoRiskAlert's open-source "Ethereum Logarithmic Regression Bands" (TradingView, Aug 2025):
-      // days since 3 Dec 2014, both lines of a band share a, the b factor is shifted by 0.15 / 0.3.
-      // Added: two dashed extreme lines through the Jan 2018 top and the 13 Mar 2020 wick.
+      // Built on CryptoRiskAlert's open-source "Ethereum Logarithmic Regression Bands" (TradingView, Aug 2025):
+      // days since 3 Dec 2014, both lines of a band share a, band widths 0.15 (upper) and 0.3 (lower) in b.
+      // Slopes refitted lower (0.79 -> 0.439, 1.38 -> 1.328) so the bands follow the 2025 top and the 2026 lows,
+      // plus a dashed extreme line through the 13 Mar 2020 wick.
       label: 'Cycle bands',
       org: Date.UTC(2014, 11, 3),
       bands: [
-        { id: 'rx', name: 'Top extreme', a: 0.79, c: -2.406, color: '#ef5350', dash: true, noLabel: true, note: 'through the Jan 2018 top ($1,420)' },
-        { id: 'rt', name: 'Upper band, top', a: 0.79, c: -2.5, color: '#F87C6B', note: 'b = 2.50' },
-        { id: 'rb', name: 'Upper band, bottom', a: 0.79, c: -2.65, color: '#F87C6B', note: 'b = 2.65' },
-        { id: 'gt', name: 'Lower band, top', a: 1.38, c: -8, color: '#62C4BE', note: 'b = 8.00' },
-        { id: 'gb', name: 'Lower band, bottom', a: 1.38, c: -8.3, color: '#62C4BE', note: 'b = 8.30' },
-        { id: 'gx', name: 'Bottom extreme', a: 1.38, c: -8.492, color: '#00c2ff', dash: true, noLabel: true, note: 'through the 13 Mar 2020 wick ($88.20)' },
+        { id: 'rt', name: 'Upper band, top', a: 0.439, c: 0.23, color: '#F87C6B', note: 'b = −0.23' },
+        { id: 'rb', name: 'Upper band, bottom', a: 0.439, c: 0.08, color: '#F87C6B', note: 'b = −0.08' },
+        { id: 'gt', name: 'Lower band, top', a: 1.328, c: -7.61, color: '#62C4BE', note: 'b = 7.61' },
+        { id: 'gb', name: 'Lower band, bottom', a: 1.328, c: -7.91, color: '#62C4BE', note: 'b = 7.91' },
+        { id: 'gx', name: 'Bottom extreme', a: 1.328, c: -8.099, color: '#00c2ff', dash: true, noLabel: true, note: 'through the 13 Mar 2020 wick ($88.20)' },
       ],
-      fills: [[1, 2, 'rgba(248,124,107,0.25)'], [3, 4, 'rgba(98,196,190,0.25)']],
+      fills: [[0, 1, 'rgba(248,124,107,0.25)'], [2, 3, 'rgba(98,196,190,0.25)']],
       thick: [],
       zones: [
-        ['Above the upper band (only Jan 2018)', '#ef5350'],
+        ['Above the upper band (only a few days in Nov 2021)', '#ef5350'],
         ['Inside the upper band (bull-market peak zone)', '#F87C6B'],
         ['Between the bands', '#e3c96b'],
         ['Inside the lower band (bear-market low zone)', '#62C4BE'],
-        ['Below the lower band (only 2015, Mar 2020 and 2026)', '#00c2ff'],
+        ['Below the lower band (only 2015–16, Mar 2020 and Nov 2026)', '#00c2ff'],
         ['Below the Mar 2020 extreme (never happened before)', '#00c2ff'],
       ],
-      zoneEdges: [1, 2, 3, 4, 5],
-      vs: [[2, 'upper band'], [4, 'lower band']],
-      legend: [['#F87C6B', 'Upper band (cycle peaks)'], ['#62C4BE', 'Lower band (bear-market lows)'], ['#ef5350', 'Top extreme (dashed)'], ['#00c2ff', 'Bottom extreme (dashed)']],
-      note: `<strong style="color:var(--text);">What it shows:</strong> the "Ethereum Logarithmic Regression Bands" model (open-source on TradingView by CryptoRiskAlert), rebuilt with the same constants, plus two dashed extreme lines. The bands are drawn two years ahead.<br>
+      zoneEdges: [0, 1, 2, 3, 4],
+      vs: [[1, 'upper band'], [3, 'lower band']],
+      legend: [['#F87C6B', 'Upper band (cycle peaks)'], ['#62C4BE', 'Lower band (bear-market lows)'], ['#00c2ff', 'Mar 2020 extreme (dashed)']],
+      note: `<strong style="color:var(--text);">What it shows:</strong> the "Ethereum Logarithmic Regression Bands" model (open-source on TradingView by CryptoRiskAlert) with the same band widths but lower, refitted slopes, so the bands follow ETH's latest cycles. The bands are drawn two years ahead.<br>
         <strong style="color:var(--text);">How to read it:</strong>
-        <strong style="color:#F87C6B;">red upper band</strong> = bull-market peaks: the May and Nov 2021 tops reached it, and ETH closed above it only in Jan 2018. The 2024–25 tops stayed well below it;
-        <strong style="color:#62C4BE;">teal lower band</strong> = bear-market lows: ETH closed below it only in 2015, Mar–Apr 2020 and 2026;
-        <strong style="color:#00c2ff;">dashed blue</strong> = the extreme low through the 13 Mar 2020 wick ($88.20), the deepest drop ever; <strong style="color:#ef5350;">dashed red</strong> = the extreme high through the Jan 2018 top.
+        <strong style="color:#F87C6B;">red upper band</strong> = bull-market peaks: the Jan 2018, May 2021, Nov 2021 and Aug 2025 tops all came within 4% of it;
+        <strong style="color:#62C4BE;">teal lower band</strong> = bear-market lows: the 2016, 2018, 2022, 2025 and 2026 lows all came within 9% of it;
+        <strong style="color:#00c2ff;">dashed blue</strong> = the extreme low through the 13 Mar 2020 wick ($88.20), the deepest drop ever: no day has traded below it.
         Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.`,
     },
   };
@@ -185,7 +185,7 @@
     if (!box) return;
     const org = M.org || ORIGIN, orgTxt = new Date(org).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
     const x = Math.round((tOf(n) - org) / DAY), lnx = Math.log(x);
-    const lo = BANDS[model === 'ext' ? 3 : 2], xl = BANDS[model === 'ext' ? 4 : 4];
+    const lo = BANDS[model === 'ext' ? 3 : 1], xl = BANDS[model === 'ext' ? 4 : 3];
     const step = (k, b) => `<tr${k === 4 ? ' class="res"' : ''}><td>${k}. ${b.name}</td><td>10<sup>(${b.a.toFixed(4)} × ${lnx.toFixed(4)} ${sgn(b.c).replace(/^([+−])/, '$1 ')})</sup></td><td>${fmtUsd(band(b, tOf(n)))}</td></tr>`;
     box.innerHTML = `
       <h4>The formula</h4>
@@ -195,7 +195,7 @@
         ${model === 'ext'
           ? `<li><b>c</b> = −7.8474, the same for every band.</li>
         <li><b>a</b> = the slope. A bigger <b>a</b> = a higher band. The classic channel uses 1.3241 (lower), 1.3441 (middle) and 1.3641 (upper).</li>`
-          : `<li><b>a</b> = how fast the band rises: 0.79 for the upper band, 1.38 for the lower band. The two lines of a band share the same <b>a</b>, so each band keeps the same width.</li>
+          : `<li><b>a</b> = how fast the band rises: 0.439 for the upper band, 1.328 for the lower band (the original script uses 0.79 and 1.38). The two lines of a band share the same <b>a</b>, so each band keeps the same width.</li>
         <li><b>c</b> = −b, the height of each line. The original script shifts b by 0.15 inside the upper band and by 0.3 inside the lower band.</li>`}
       </ul>
       ${model === 'ext' ? extExplain() : cycExplain()}
@@ -215,7 +215,7 @@
   // Each cycle top / low and where it sits relative to its band (0% = lower edge, 100% = upper edge).
   function cycExplain() {
     const rows = EVENTS.map(([kind, name, s, e]) => {
-      const [hiB, loB] = kind === 'Top' ? [BANDS[1], BANDS[2]] : [BANDS[3], BANDS[4]];
+      const [hiB, loB] = kind === 'Top' ? [BANDS[0], BANDS[1]] : [BANDS[2], BANDS[3]];
       let best = null;
       for (let i = Math.max(0, Math.round((Date.parse(s) - t0) / DAY)); i <= Math.min(D.n, Math.round((Date.parse(e) - t0) / DAY)); i++) {
         const p = kind === 'Top' ? D.h[i] : D.l[i]; if (!(p > 0)) continue;
@@ -229,8 +229,8 @@
       return `<tr><td>${name}</td><td>${fmtDate(best.i)}</td><td>${fmtUsd(best.p)}</td><td>${where}</td></tr>`;
     }).join('');
     return `
-      <h4 style="margin-top:14px;">Where each cycle top and low landed</h4>
-      <p>The upper band was fitted to the 2018 and 2021 peaks, so the 2021 tops reached it; the 2024–25 tops (Mar 2024 and Aug 2025) stayed about a third under it, a sign of diminishing returns. The lower band caught the 2016, 2018 and 2025 lows; the Jun 2022 low stopped 3% above it, and the 2015, Mar 2020 and 2026 lows went below it. That is why the dashed extreme line is drawn through the Mar 2020 wick: no day in ETH's history has traded below it.</p>
+      <h4 style="margin-top:14px;">Why the slopes are lower than the original</h4>
+      <p>The original script (a = 0.79 and 1.38) was fitted to the 2018 and 2021 peaks. Since then ETH's growth has slowed: the 2024–25 tops stopped about a third under its upper band, and the 2026 lows fell through its lower band. We kept the same band widths and searched for the slopes that bring every cycle top and low as close to its band as possible. The upper band's slope dropped to 0.439 (every top within 4% of the band) and the lower band's to 1.328 (every bear-market low within 9%). The 2026 low is still forming: if ETH keeps falling, the lower band will need a refit.</p>
       <table class="ipo-table"><thead><tr><th>Event</th><th>Date</th><th>Price</th><th>Where</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 

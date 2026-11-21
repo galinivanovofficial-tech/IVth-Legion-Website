@@ -1,28 +1,27 @@
 // IVth Legion — ETH Cycle Bands
 //
-// Rebuilds the open-source "Ethereum Logarithmic Regression Bands" by CryptoRiskAlert (TradingView, Aug 2025)
-// with the same constants, plus two dashed extreme lines.
+// Built on the open-source "Ethereum Logarithmic Regression Bands" by CryptoRiskAlert (TradingView, Aug 2025):
+// same formula and band widths, with lower slopes refitted so the bands follow ETH's latest cycles.
 //
 //   price = 10 ^ (a * ln(t) - b),   t = days since 3 Dec 2014
-//   Upper band (red)   a = 0.79   b = 2.50 / 2.65   bull-market peaks (2021 tops reached it; only Jan 2018 closed above)
-//   Lower band (teal)  a = 1.38   b = 8.00 / 8.30   bear-market lows (closed below only in 2015, Mar 2020 and 2026)
-//   Top extreme        a = 0.79   b = 2.406         through the Jan 2018 top ($1,420)
-//   Bottom extreme     a = 1.38   b = 8.492         through the 13 Mar 2020 wick ($88.20); no day has traded below it
+//   Upper band (red)   a = 0.439 (orig 0.79)   b = -0.23 / -0.08   Jan 2018, May 2021, Nov 2021, Aug 2025 tops all within 4%
+//   Lower band (teal)  a = 1.328 (orig 1.38)   b = 7.61 / 7.91     2016, 2018, 2022, 2025, 2026 lows all within 9%
+//   Bottom extreme     a = 1.328               b = 8.099           through the 13 Mar 2020 wick ($88.20); no day traded below it
 //
+// The 2026 low is still forming: if ETH keeps falling, the lower band needs a refit.
 // The bands depend only on the date: use it on ETHUSD, log scale, daily or weekly.
 //
 //@version=5
 indicator("IVth Legion ETH Cycle Bands", shorttitle="IVL ETH Cycle", overlay=true)
 
-aUp    = input.float(0.79, "Upper band slope a", step=0.01)
-bUpTop = input.float(2.5, "Upper band top b", step=0.01)
-bUpBot = input.float(2.65, "Upper band bottom b", step=0.01)
-aLo    = input.float(1.38, "Lower band slope a", step=0.01)
-bLoTop = input.float(8.0, "Lower band top b", step=0.01)
-bLoBot = input.float(8.3, "Lower band bottom b", step=0.01)
-showX  = input.bool(true, "Draw the extreme lines (Jan 2018 top / Mar 2020 wick)")
-bXTop  = input.float(2.406, "Top extreme b", step=0.001)
-bXBot  = input.float(8.492, "Bottom extreme b", step=0.001)
+aUp    = input.float(0.439, "Upper band slope a", step=0.001)
+bUpTop = input.float(-0.23, "Upper band top b", step=0.01)
+bUpBot = input.float(-0.08, "Upper band bottom b", step=0.01)
+aLo    = input.float(1.328, "Lower band slope a", step=0.001)
+bLoTop = input.float(7.61, "Lower band top b", step=0.01)
+bLoBot = input.float(7.91, "Lower band bottom b", step=0.01)
+showX  = input.bool(true, "Draw the Mar 2020 extreme line")
+bXBot  = input.float(8.099, "Bottom extreme b", step=0.001)
 showTbl = input.bool(true, "Show table")
 
 origin = timestamp("UTC", 2014, 12, 3, 0, 0)
@@ -30,7 +29,6 @@ tDays  = (time - origin) / 86400000.0
 lnt    = tDays > 1 ? math.log(tDays) : na
 bandAt(a, b) => math.pow(10, a * lnt - b)
 
-xTop = bandAt(aUp, bXTop)
 uTop = bandAt(aUp, bUpTop)
 uBot = bandAt(aUp, bUpBot)
 lTop = bandAt(aLo, bLoTop)
@@ -45,7 +43,6 @@ p3 = plot(lTop, "Lower band, top", color=cTeal)
 p4 = plot(lBot, "Lower band, bottom", color=cTeal)
 fill(p1, p2, color=color.new(cRed, 75), title="Upper band")
 fill(p3, p4, color=color.new(cTeal, 75), title="Lower band")
-plot(showX ? xTop : na, "Top extreme", color=#ef5350, style=plot.style_circles, linewidth=1)
 plot(showX ? xBot : na, "Bottom extreme", color=#00c2ff, style=plot.style_circles, linewidth=1)
 
 zone = close > uTop ? "Above the upper band" : close >= uBot ? "Inside the upper band" : close > lTop ? "Between the bands" : close >= lBot ? "Inside the lower band" : close >= xBot ? "Below the lower band" : "Below the Mar 2020 extreme"
