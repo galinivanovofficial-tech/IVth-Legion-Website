@@ -39,35 +39,42 @@
         Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.`,
     },
     cyc: {
+      // Recreates CryptoRiskAlert's open-source "Ethereum Logarithmic Regression Bands" (TradingView, Aug 2025):
+      // days since 3 Dec 2014, both lines of a band share a, the b factor is shifted by 0.15 / 0.3.
+      // Added: two dashed extreme lines through the Jan 2018 top and the 13 Mar 2020 wick.
       label: 'Cycle bands',
+      org: Date.UTC(2014, 11, 3),
       bands: [
-        { id: 'rt', name: 'Top band, upper', a: 0.428, c: 0.3413, color: '#ef5350', note: 'through the Nov 2021 top ($4,869)' },
-        { id: 'rb', name: 'Top band, lower', a: 0.428, c: 0.1596, color: '#ef5350', note: 'through the Jan 2018 and Aug 2025 tops' },
-        { id: 'gt', name: 'Bottom band, upper', a: 1.448, c: -8.4989, color: '#2ecc71', note: 'through the 2015 and Jun 2022 lows' },
-        { id: 'gb', name: 'Bottom band, lower', a: 1.448, c: -8.9695, color: '#2ecc71', note: 'through the Mar 2020 low ($88.20)' },
+        { id: 'rx', name: 'Top extreme', a: 0.79, c: -2.406, color: '#ef5350', dash: true, noLabel: true, note: 'through the Jan 2018 top ($1,420)' },
+        { id: 'rt', name: 'Upper band, top', a: 0.79, c: -2.5, color: '#F87C6B', note: 'b = 2.50' },
+        { id: 'rb', name: 'Upper band, bottom', a: 0.79, c: -2.65, color: '#F87C6B', note: 'b = 2.65' },
+        { id: 'gt', name: 'Lower band, top', a: 1.38, c: -8, color: '#62C4BE', note: 'b = 8.00' },
+        { id: 'gb', name: 'Lower band, bottom', a: 1.38, c: -8.3, color: '#62C4BE', note: 'b = 8.30' },
+        { id: 'gx', name: 'Bottom extreme', a: 1.38, c: -8.492, color: '#00c2ff', dash: true, noLabel: true, note: 'through the 13 Mar 2020 wick ($88.20)' },
       ],
-      fills: [[0, 1, 'rgba(239,83,80,0.16)'], [2, 3, 'rgba(46,204,113,0.13)']],
+      fills: [[1, 2, 'rgba(248,124,107,0.25)'], [3, 4, 'rgba(98,196,190,0.25)']],
       thick: [],
-      meet: [1, 2], // the bands converge: stop the projection where these two lines cross
       zones: [
-        ['Above the top band (never happened since 2016)', '#ef5350'],
-        ['Inside the top band (cycle-top zone)', '#ef5350'],
+        ['Above the upper band (only Jan 2018)', '#ef5350'],
+        ['Inside the upper band (bull-market peak zone)', '#F87C6B'],
         ['Between the bands', '#e3c96b'],
-        ['Inside the bottom band (cycle-low zone)', '#2ecc71'],
-        ['Below the bottom band (never happened before)', '#00c2ff'],
+        ['Inside the lower band (bear-market low zone)', '#62C4BE'],
+        ['Below the lower band (only 2015, Mar 2020 and 2026)', '#00c2ff'],
+        ['Below the Mar 2020 extreme (never happened before)', '#00c2ff'],
       ],
-      zoneEdges: [0, 1, 2, 3],
-      vs: [[1, 'top band'], [3, 'bottom band floor']],
-      legend: [['#ef5350', 'Top band (cycle tops)'], ['#2ecc71', 'Bottom band (cycle lows)']],
-      note: `<strong style="color:var(--text);">What it shows:</strong> two regression bands fitted to ETH's real cycle extremes: each band is the narrowest one that holds every top (red) or every low (green), and keeps the same width over time.<br>
+      zoneEdges: [1, 2, 3, 4, 5],
+      vs: [[2, 'upper band'], [4, 'lower band']],
+      legend: [['#F87C6B', 'Upper band (cycle peaks)'], ['#62C4BE', 'Lower band (bear-market lows)'], ['#ef5350', 'Top extreme (dashed)'], ['#00c2ff', 'Bottom extreme (dashed)']],
+      note: `<strong style="color:var(--text);">What it shows:</strong> the "Ethereum Logarithmic Regression Bands" model (open-source on TradingView by CryptoRiskAlert), rebuilt with the same constants, plus two dashed extreme lines. The bands are drawn two years ahead.<br>
         <strong style="color:var(--text);">How to read it:</strong>
-        <strong style="color:#ef5350;">red top band</strong> = every cycle top is inside it: the lower edge runs through the Jan 2018 and Aug 2025 tops, the upper edge through the Nov 2021 top. ETH has never traded above it since 2016;
-        <strong style="color:#2ecc71;">green bottom band</strong> = every cycle low is inside it: the lower edge runs through the 13 Mar 2020 wick ($88.20) and no day in ETH's history has traded below it; the upper edge runs through the 2015 and Jun 2022 lows.
-        Tops have flattened since 2021 while the lows keep rising, so the two bands squeeze together; the projection stops where they meet.
+        <strong style="color:#F87C6B;">red upper band</strong> = bull-market peaks: the May and Nov 2021 tops reached it, and ETH closed above it only in Jan 2018. The 2024–25 tops stayed well below it;
+        <strong style="color:#62C4BE;">teal lower band</strong> = bear-market lows: ETH closed below it only in 2015, Mar–Apr 2020 and 2026;
+        <strong style="color:#00c2ff;">dashed blue</strong> = the extreme low through the 13 Mar 2020 wick ($88.20), the deepest drop ever; <strong style="color:#ef5350;">dashed red</strong> = the extreme high through the Jan 2018 top.
         Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.`,
     },
   };
   MODELS.ext.bands.forEach(b => { b.c = -B; });
+  MODELS.cyc.bands.forEach(b => { b.org = MODELS.cyc.org; });
   // Cycle extremes shown in the 'cyc' explainer, measured from the data so the 2026 row stays current.
   const EVENTS = [
     ['Top', 'Jan 2018 top', '2017-12-01', '2018-03-01'], ['Top', 'May 2021 top', '2021-04-01', '2021-07-01'],
@@ -84,7 +91,7 @@
   const C = { price: '#e8e8f0', wick: 'rgba(232,232,240,0.28)', grid: 'rgba(255,255,255,0.06)', label: '#8a8fa8' };
   let root, canvas, tip, zoom = null, drag = null, D = null, t0 = 0, geo = null, loading = false, wired = false;
 
-  const band = (bd, t) => { const x = (t - ORIGIN) / DAY; return x > 1 ? 10 ** (bd.a * Math.log(x) + bd.c) : null; };
+  const band = (bd, t) => { const x = (t - (bd.org || ORIGIN)) / DAY; return x > 1 ? 10 ** (bd.a * Math.log(x) + bd.c) : null; };
   const fmtUsd = v => v == null ? '—' : v >= 1e3 ? '$' + Math.round(v).toLocaleString('en-US') : v >= 1 ? '$' + v.toFixed(2) : '$' + v.toPrecision(2);
   const sgn = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(4);
   const tickLbl = v => v >= 1e6 ? (v / 1e6) + 'M' : v >= 1e3 ? (v / 1e3) + 'K' : String(v);
@@ -176,24 +183,25 @@
   function explain(n) {
     const box = document.getElementById('ethreg-explain');
     if (!box) return;
-    const x = Math.round((tOf(n) - ORIGIN) / DAY), lnx = Math.log(x);
-    const lo = BANDS[model === 'ext' ? 3 : 1], xl = BANDS[model === 'ext' ? 4 : 3];
+    const org = M.org || ORIGIN, orgTxt = new Date(org).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const x = Math.round((tOf(n) - org) / DAY), lnx = Math.log(x);
+    const lo = BANDS[model === 'ext' ? 3 : 2], xl = BANDS[model === 'ext' ? 4 : 4];
     const step = (k, b) => `<tr${k === 4 ? ' class="res"' : ''}><td>${k}. ${b.name}</td><td>10<sup>(${b.a.toFixed(4)} × ${lnx.toFixed(4)} ${sgn(b.c).replace(/^([+−])/, '$1 ')})</sup></td><td>${fmtUsd(band(b, tOf(n)))}</td></tr>`;
     box.innerHTML = `
       <h4>The formula</h4>
       <div class="mvz-eq">ETH price = 10<sup>(a × ln(x) + c)</sup></div>
       <ul>
-        <li><b>x</b> = days since 21 Jan 2015. Time is on a log scale, so each year moves the bands less than the one before: growth slows as ETH matures.</li>
+        <li><b>x</b> = days since ${orgTxt}. Time is on a log scale, so each year moves the bands less than the one before: growth slows as ETH matures.</li>
         ${model === 'ext'
           ? `<li><b>c</b> = −7.8474, the same for every band.</li>
         <li><b>a</b> = the slope. A bigger <b>a</b> = a higher band. The classic channel uses 1.3241 (lower), 1.3441 (middle) and 1.3641 (upper).</li>`
-          : `<li><b>a</b> = how fast the band rises. The two lines of a band share the same <b>a</b>, so the band keeps the same width.</li>
-        <li><b>c</b> = the height of each line.</li>`}
+          : `<li><b>a</b> = how fast the band rises: 0.79 for the upper band, 1.38 for the lower band. The two lines of a band share the same <b>a</b>, so each band keeps the same width.</li>
+        <li><b>c</b> = −b, the height of each line. The original script shifts b by 0.15 inside the upper band and by 0.3 inside the lower band.</li>`}
       </ul>
       ${model === 'ext' ? extExplain() : cycExplain()}
       <h4 style="margin-top:14px;">Worked example: ${fmtDate(n)}</h4>
       <table class="mvz-steps">
-        <tr><td>1. Days since 21 Jan 2015</td><td>x</td><td>${x.toLocaleString('en-US')}</td></tr>
+        <tr><td>1. Days since ${orgTxt}</td><td>x</td><td>${x.toLocaleString('en-US')}</td></tr>
         <tr><td>2. Natural log</td><td>ln(${x.toLocaleString('en-US')})</td><td>${lnx.toFixed(4)}</td></tr>
         ${step(3, lo)}${step(4, xl)}
       </table>`;
@@ -207,7 +215,7 @@
   // Each cycle top / low and where it sits relative to its band (0% = lower edge, 100% = upper edge).
   function cycExplain() {
     const rows = EVENTS.map(([kind, name, s, e]) => {
-      const [hiB, loB] = kind === 'Top' ? [BANDS[0], BANDS[1]] : [BANDS[2], BANDS[3]];
+      const [hiB, loB] = kind === 'Top' ? [BANDS[1], BANDS[2]] : [BANDS[3], BANDS[4]];
       let best = null;
       for (let i = Math.max(0, Math.round((Date.parse(s) - t0) / DAY)); i <= Math.min(D.n, Math.round((Date.parse(e) - t0) / DAY)); i++) {
         const p = kind === 'Top' ? D.h[i] : D.l[i]; if (!(p > 0)) continue;
@@ -215,18 +223,14 @@
       }
       if (!best) return '';
       const lo = band(loB, tOf(best.i)), hi = band(hiB, tOf(best.i)), pos = Math.log(best.p / lo) / Math.log(hi / lo) * 100;
-      const col = kind === 'Top' ? '#ef5350' : '#2ecc71', what = kind === 'Top' ? 'top band' : 'bottom band';
+      const col = kind === 'Top' ? '#F87C6B' : '#62C4BE', what = kind === 'Top' ? 'upper band' : 'lower band';
       const where = pos > 100.5 ? `${pct(best.p, hi)} above ${what}` : pos < -0.5 ? `${pct(best.p, lo).replace('-', '')} below ${what}`
         : `<span style="color:${col}">inside ${what}</span> <span class="ipo-dim">(${Math.round(Math.max(0, Math.min(100, pos)))}% up)</span>`;
       return `<tr><td>${name}</td><td>${fmtDate(best.i)}</td><td>${fmtUsd(best.p)}</td><td>${where}</td></tr>`;
     }).join('');
-    const mt = meetT();
     return `
-      <h4 style="margin-top:14px;">How the cycle bands were fitted</h4>
-      <p>Each band is two parallel lines. For every possible slope <b>a</b> we pushed the two lines as close together as they can go while still holding every cycle top (red) or every cycle low (green), and kept the slope that gives the narrowest band.</p>
-      <p><b style="color:#ef5350">Top band</b> (a = ${BANDS[0].a}, ${(band(BANDS[0], tOf(D.n)) / band(BANDS[1], tOf(D.n))).toFixed(2)}× wide): the lower edge touches the Jan 2018 and Aug 2025 tops, the upper edge the Nov 2021 top. The Mar 2024 high sits just under it because it was not the cycle top.<br>
-      <b style="color:#2ecc71">Bottom band</b> (a = ${BANDS[2].a}, ${(band(BANDS[2], tOf(D.n)) / band(BANDS[3], tOf(D.n))).toFixed(2)}× wide): the lower edge touches the 13 Mar 2020 wick, and no day has ever traded below it; the upper edge touches the 2015 and Jun 2022 lows.</p>
-      <p><b>The squeeze:</b> ETH's tops have barely risen since 2021 while its lows keep climbing, so the bottom band rises faster than the top band. ${mt ? `The top of the green band meets the bottom of the red band around <b>${new Date(mt).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</b>, at about ${fmtUsd(band(BANDS[M.meet[0]], mt))}.` : ''} Read it as ETH's cycle range getting tighter, not as a date.</p>
+      <h4 style="margin-top:14px;">Where each cycle top and low landed</h4>
+      <p>The upper band was fitted to the 2018 and 2021 peaks, so the 2021 tops reached it; the 2024–25 tops (Mar 2024 and Aug 2025) stayed about a third under it, a sign of diminishing returns. The lower band caught the 2016, 2018 and 2025 lows; the Jun 2022 low stopped 3% above it, and the 2015, Mar 2020 and 2026 lows went below it. That is why the dashed extreme line is drawn through the Mar 2020 wick: no day in ETH's history has traded below it.</p>
       <table class="ipo-table"><thead><tr><th>Event</th><th>Date</th><th>Price</th><th>Where</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
