@@ -12,6 +12,7 @@
   const MODELS = {
     ext: {
       label: 'Channel + extremes',
+      title: '📐 ETH Logarithmic Regression Bands',
       bands: [
         { id: 'xhi', name: 'Extreme high', a: 1.4125, color: '#ef5350', note: 'through the current-cycle top (12 Mar 2024, $4,095)' },
         { id: 'hi', name: 'Upper band', a: 1.364138846, color: '#2ecc71' },
@@ -44,6 +45,7 @@
       // Slopes refitted lower (0.79 -> 0.439, 1.38 -> 1.328) so the bands follow the 2025 top and the 2026 lows,
       // plus a dashed extreme line through the 13 Mar 2020 wick.
       label: 'Cycle bands',
+      title: '📐 ETH Cycle Bands',
       org: Date.UTC(2014, 11, 3),
       bands: [
         { id: 'rt', name: 'Upper band, top', a: 0.439, c: 0.23, color: '#F87C6B', note: 'b = −0.23' },
@@ -86,7 +88,6 @@
     ['Low', '2026 low so far', '2026-01-01', '2026-12-31'],
   ];
   let model = 'ext';
-  try { if (MODELS[localStorage.getItem('ethreg-model')]) model = localStorage.getItem('ethreg-model'); } catch (e) { /* storage blocked */ }
   let M = MODELS[model], BANDS = M.bands;
   const C = { price: '#e8e8f0', wick: 'rgba(232,232,240,0.28)', grid: 'rgba(255,255,255,0.06)', label: '#8a8fa8' };
   let root, canvas, tip, zoom = null, drag = null, D = null, t0 = 0, geo = null, loading = false, wired = false;
@@ -105,11 +106,11 @@
     return { txt: z[0], c: z[1] };
   }
 
+  // The dashboard has one tab per model ('ETH Regression Bands' = ext, 'ETH Cycle Bands' = cyc); both share this panel.
   function setModel(id) {
     if (id === model || !MODELS[id]) return;
-    model = id; M = MODELS[id]; BANDS = M.bands;
-    try { localStorage.setItem('ethreg-model', id); } catch (e) { /* storage blocked */ }
-    root.dataset.ready = ''; draw();
+    model = id; M = MODELS[id]; BANDS = M.bands; zoom = null;
+    if (root) root.dataset.ready = '';
   }
 
   async function load() {
@@ -146,8 +147,6 @@
         <span class="ipo-dim"><b style="color:var(--text);font-size:13px;">ETH: ${fmtUsd(p)}</b> · <span style="color:${z.c}">${z.txt}</span></span>
         <span class="ipo-dim">${M.vs.map(([k, t]) => `${pct(p, vals[k])} vs ${t}`).join(' · ')}</span>
         <span class="ipo-dim">as of ${fmtDate(n)}</span></div>
-        <div class="ipo-row"><span class="ipo-lbl" style="margin-left:0;">Model</span>
-          ${Object.entries(MODELS).map(([id, m]) => `<button type="button" class="ipo-key${id === model ? '' : ' off'}" data-model="${id}" aria-pressed="${id === model}">${m.label}</button>`).join('')}</div>
         <div class="ipo-legend">
           <span class="ipo-key" style="cursor:default"><i style="background:${C.price}"></i>ETH price (log)</span>
           ${M.legend.map(([c, t]) => `<span class="ipo-key" style="cursor:default"><i style="background:${c}"></i>${t}</span>`).join('')}
@@ -157,7 +156,7 @@
         ${BANDS.map((b, k) => `<tr><td><i class="ipo-dot" style="background:${b.color}"></i>${b.name}${b.note ? ` <span class="ipo-dim">${b.note}</span>` : ''}</td><td>${b.a.toFixed(4)} / ${sgn(b.c)}</td><td>${fmtUsd(vals[k])}</td><td>${pct(p, vals[k])}</td></tr>`).join('')}
       </tbody></table>`;
     canvas = root.querySelector('canvas'); tip = root.querySelector('.ipo-tip');
-    root.querySelectorAll('[data-model]').forEach(b => b.addEventListener('click', () => setModel(b.dataset.model)));
+    const title = document.getElementById('ethreg-title'); if (title) title.textContent = M.title;
     const note = document.getElementById('ethreg-note'); if (note) note.innerHTML = M.note;
     explain(n);
     canvas.addEventListener('mousedown', e => { drag = { x0: e.offsetX, x1: e.offsetX }; });
@@ -244,7 +243,8 @@
 
   const idxAt = x => { const g = geo; return Math.max(g.i0, Math.min(g.i1, Math.round(g.i0 + (x - g.L) / g.pw * (g.i1 - g.i0)))); };
 
-  function draw() {
+  function draw(id) {
+    if (typeof id === 'string') setModel(id);
     if (!build() || !canvas) return;
     const W = canvas.clientWidth, H = canvas.clientHeight, dpr = window.devicePixelRatio || 1;
     if (!W || !H) return;

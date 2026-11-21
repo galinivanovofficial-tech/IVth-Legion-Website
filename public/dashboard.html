@@ -2292,6 +2292,7 @@ div.ipo-note p{margin:0 0 8px}
         <button class="chart-tab" onclick="switchChartTab('terminal', this)">Terminal Price</button>
         <button class="chart-tab" onclick="switchChartTab('mvrvz', this)">MVRV Z-Score</button>
         <button class="chart-tab" onclick="switchChartTab('ethreg', this)">ETH Regression Bands</button>
+        <button class="chart-tab" onclick="switchChartTab('ethcyc', this)">ETH Cycle Bands</button>
         <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
       </div>
 
@@ -2319,7 +2320,7 @@ div.ipo-note p{margin:0 0 8px}
       <div class="chart-sub" id="chartSub-ethreg" style="display:none;">
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">📐 ETH Logarithmic Regression Bands</span>
+            <span class="panel-title" id="ethreg-title">📐 ETH Logarithmic Regression Bands</span>
             <span class="panel-badge">Daily</span>
           </div>
           <div id="ethreg-root" class="ipo-root"></div>
@@ -3124,7 +3125,7 @@ div.ipo-note p{margin:0 0 8px}
 <script src="onchain-terminal.js?v=20261113"></script>
 <script src="terminal-chart.js?v=2"></script>
 <script src="mvrvz-chart.js?v=4"></script>
-<script src="eth-regression-chart.js?v=2"></script>
+<script src="eth-regression-chart.js?v=3"></script>
 <script src="mining-cost.js?v=20261112"></script>
 <script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>
@@ -3315,7 +3316,7 @@ div.ipo-note p{margin:0 0 8px}
     document.querySelectorAll('#chartMainTabs .chart-tab').forEach(function(t){ t.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     document.querySelectorAll('.chart-sub').forEach(function(s){ s.style.display = 'none'; });
-    var el = document.getElementById('chartSub-' + tab);
+    var el = document.getElementById('chartSub-' + (tab === 'ethcyc' ? 'ethreg' : tab)); // both ETH models share one panel
     if (el) el.style.display = '';
     if (tab === 'supplyPL') drawSupplyPL();
     if (tab === 'ytdROI') drawYtdROI();
@@ -3324,7 +3325,7 @@ div.ipo-note p{margin:0 0 8px}
     if (tab === 'shutdown' && window.LegionShutdown) window.LegionShutdown.draw();
     if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
     if (tab === 'mvrvz' && window.LegionMVRVZ) window.LegionMVRVZ.draw();
-    if (tab === 'ethreg' && window.LegionETHReg) window.LegionETHReg.draw();
+    if ((tab === 'ethreg' || tab === 'ethcyc') && window.LegionETHReg) window.LegionETHReg.draw(tab === 'ethcyc' ? 'cyc' : 'ext');
     if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
   };
 
