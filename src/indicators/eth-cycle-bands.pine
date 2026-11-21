@@ -1,0 +1,70 @@
+// IVth Legion — ETH Cycle Bands (logarithmic regression, fitted to ETH's real cycle extremes)
+//
+// Same formula as the classic ETH log regression:
+//   price = 10 ^ (a * ln(x) - b),   x = days since 21 Jan 2015,   b = 7.847387532
+//
+// For every cycle top and bear-market low we solved for the slope a of the band that passes
+// exactly through it:
+//   Lows   Dec 2018 1.3435 · Mar 2020 1.2991 · Jun 2022 1.3656 · Apr 2025 1.3361 · Nov 2026 1.3180
+//   Tops   Jan 2018 1.5732 · May 2021 1.4840 · Nov 2021 1.4754 · Mar 2024 1.4125 · Aug 2025 1.3973
+//
+//   Bottom band (green)  a = 1.2991 .. 1.3656   Mar 2020 wick ($88.20) .. Jun 2022 low ($880)
+//                        every bear-market low since 2018 landed inside it
+//   Top band (red)       a = 1.3973 .. 1.4840   Aug 2025 top ($4,955) .. May 2021 top ($4,381)
+//                        every top since 2021 is inside it; only the 2017-18 bubble went above
+//
+// Tops reach a lower slope every cycle (diminishing returns), lows do not, so the top band covers
+// the last two cycles. The bands depend only on the date: use it on ETHUSD, log scale, daily or weekly.
+//
+//@version=5
+indicator("IVth Legion ETH Cycle Bands", shorttitle="IVL ETH Cycle", overlay=true)
+
+aTopHi = input.float(1.4840, "Top band, upper slope a", step=0.0005, tooltip="1.4840 = through the May 2021 top. 1.573 reaches the 2018 top.")
+aTopLo = input.float(1.3973, "Top band, lower slope a", step=0.0005, tooltip="1.3973 = through the Aug 2025 top ($4,955).")
+aBotHi = input.float(1.3656, "Bottom band, upper slope a", step=0.0005, tooltip="1.3656 = through the Jun 2022 low ($880).")
+aBotLo = input.float(1.2991, "Bottom band, lower slope a", step=0.0005, tooltip="1.2991 = through the Mar 2020 wick ($88.20), the deepest low ever.")
+B      = input.float(7.847387532, "Intercept b", step=0.001)
+showTbl = input.bool(true, "Show table")
+
+origin = timestamp("UTC", 2015, 1, 21, 0, 0)
+xDays  = (time - origin) / 86400000.0
+lnx    = xDays > 1 ? math.log(xDays) : na
+band(a) => math.pow(10, a * lnx - B)
+
+tHi = band(aTopHi)
+tLo = band(aTopLo)
+bHi = band(aBotHi)
+bLo = band(aBotLo)
+
+cRed = #ef5350
+cGrn = #2ecc71
+p1 = plot(tHi, "Top band, upper", color=cRed)
+p2 = plot(tLo, "Top band, lower", color=cRed)
+p3 = plot(bHi, "Bottom band, upper", color=cGrn)
+p4 = plot(bLo, "Bottom band, lower", color=cGrn)
+fill(p1, p2, color=color.new(cRed, 85), title="Top band")
+fill(p3, p4, color=color.new(cGrn, 85), title="Bottom band")
+
+zone = close > tHi ? "Above the top band" : close >= tLo ? "Inside the top band" : close > bHi ? "Between the bands" : close >= bLo ? "Inside the bottom band" : "Below the bottom band"
+zoneCol = close >= tLo ? cRed : close > bHi ? color.orange : close >= bLo ? cGrn : #00c2ff
+
+fmt(v) => (v >= 0 ? "+" : "") + str.tostring(v, "#.0") + "%"
+usd(v) => "$" + str.tostring(v, v >= 1000 ? "#,###" : "#.##")
+var table tb = table.new(position.bottom_right, 3, 6, bgcolor=color.new(#0d0d18, 10), border_color=color.new(#ffffff, 85), border_width=1)
+if showTbl and barstate.islast
+    table.cell(tb, 0, 0, "Band", text_color=color.silver, text_size=size.small)
+    table.cell(tb, 1, 0, "Today", text_color=color.silver, text_size=size.small)
+    table.cell(tb, 2, 0, "Price vs band", text_color=color.silver, text_size=size.small)
+    names = array.from("Top, upper", "Top, lower", "Bottom, upper", "Bottom, lower")
+    vals = array.from(tHi, tLo, bHi, bLo)
+    for i = 0 to 3
+        v = array.get(vals, i)
+        table.cell(tb, 0, i + 1, array.get(names, i), text_color=i < 2 ? cRed : cGrn, text_size=size.small)
+        table.cell(tb, 1, i + 1, usd(v), text_color=color.white, text_size=size.small)
+        table.cell(tb, 2, i + 1, fmt((close / v - 1) * 100), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 5, zone, text_color=zoneCol, text_size=size.small)
+    table.merge_cells(tb, 0, 5, 2, 5)
+
+alertcondition(ta.crossunder(low, bHi), "ETH entered the bottom band", "ETH traded down into the green bottom band (bear-market low zone)")
+alertcondition(ta.crossover(high, tLo), "ETH entered the top band", "ETH traded up into the red top band (cycle-top zone)")
+alertcondition(ta.crossunder(low, bLo), "ETH below the bottom band", "ETH traded below the bottom band, lower than any day in its history")

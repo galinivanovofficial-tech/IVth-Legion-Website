@@ -7,7 +7,7 @@
 //   Upper         a = 1.364138846
 //   Middle        a = 1.344138846
 //   Lower         a = 1.324138846
-//   Extreme low   a = 1.2994   through the deepest low in ETH's history (13 Mar 2020 wick, $88.20),
+//   Extreme low   a = 1.2991   through the deepest low in ETH's history (13 Mar 2020 wick, $88.20),
 //                              ~35% under the lower band that day; no other day has gone below it
 //
 // Reading it: ETH spent most of 2017-2025 ABOVE the channel, so the green channel acts as a
@@ -25,7 +25,7 @@ indicator("IVth Legion ETH Log Regression Bands", shorttitle="IVL ETH LogReg", o
 
 showMain = input.bool(true, "Draw the classic channel (lower / middle / upper)")
 showXLo  = input.bool(true, "Draw the extreme LOW band")
-aXLo     = input.float(1.2994, "Extreme low slope a", step=0.0005, tooltip="1.2994 = band through the March 2020 low ($88.20). Lower it to push the band down.")
+aXLo     = input.float(1.2991, "Extreme low slope a", step=0.0005, tooltip="1.2991 = band through the March 2020 low ($88.20). Lower it to push the band down.")
 showXHi  = input.bool(true, "Draw the extreme HIGH band")
 aXHi     = input.float(1.4125, "Extreme high slope a", step=0.0005, tooltip="1.4125 = band through the March 2024 top ($4,095). 1.484 reaches the 2021 top, 1.573 the 2018 top.")
 B        = input.float(7.847387532, "Intercept b", step=0.001)
