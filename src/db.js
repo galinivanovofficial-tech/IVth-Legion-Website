@@ -81,6 +81,42 @@ db.exec(`
     detail     TEXT,
     created_at INTEGER NOT NULL
   );
+
+  -- Legion Heartbeat: one row per service, overwritten on every heartbeat (no history).
+  CREATE TABLE IF NOT EXISTS hb_services (
+    name          TEXT PRIMARY KEY,                   -- 'web', 'autodeploy', 'weex-bot'
+    status        TEXT NOT NULL DEFAULT 'unknown',    -- unknown | up | offline
+    version       TEXT NOT NULL DEFAULT '',           -- e.g. image tag 'ca0f8c1'
+    interval_sec  INTEGER NOT NULL DEFAULT 120,       -- how often it promises to report
+    last_seen_at  INTEGER NOT NULL DEFAULT 0,         -- unix seconds of the last heartbeat
+    created_at    INTEGER NOT NULL
+  );
+
+  -- Events a service reports (deploy ok/failed, errors). The sender picks the id,
+  -- so a retried request hits the PRIMARY KEY and is stored only once.
+  CREATE TABLE IF NOT EXISTS hb_events (
+    id          TEXT PRIMARY KEY,                     -- sender's unique id, e.g. 'deploy-ca0f8c1'
+    service     TEXT NOT NULL,
+    type        TEXT NOT NULL,                        -- deploy_ok | deploy_failed | error | ...
+    level       TEXT NOT NULL DEFAULT 'info',         -- info | warn | critical
+    message     TEXT NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL
+  );
+
+
+  -- Outbox: a notification is first a row here, then a worker sends it to Telegram.
+  -- If sending fails it retries with backoff; after 5 failures it becomes 'dead'.
+  CREATE TABLE IF NOT EXISTS hb_notifications (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    text         TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'pending',     -- pending | sent | dead
+    attempts     INTEGER NOT NULL DEFAULT 0,
+    next_try_at  INTEGER NOT NULL DEFAULT 0,          -- unix seconds; 0 = send now
+    last_error   TEXT NOT NULL DEFAULT '',
+    created_at   INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_hb_notifications_due ON hb_notifications(status, next_try_at);
+  CREATE INDEX IF NOT EXISTS idx_hb_events_service ON hb_events(service, created_at);
 `);
 
 const now = () => Math.floor(Date.now() / 1000);
