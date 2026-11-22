@@ -13,6 +13,7 @@ import { registerTradeRoutes } from './trades.js';
 import { registerMacroRoutes, startMacro } from './macro.js';
 import { startPolling } from './telegram.js';
 import { startJobs } from './jobs.js';
+import { db } from './db.js';
 import { registerDataFileRoutes } from './data-refresh.js';
 import { registerAccessRoutes } from './access.js';
 
@@ -107,7 +108,18 @@ registerTradeRoutes(router);
 registerMacroRoutes(router);
 registerDataFileRoutes(router);
 registerAccessRoutes(router);
-router.get('/api/health', (req, res) => res.json(200, { ok: true, ...configSummary() }));
+// liveness: "is the process alive?" Keep it tiny, never expose config.
+router.get('/api/health', (req, res) => res.json(200, { ok: true }));
+// readiness: "can I serve users right now?" Checks the database.
+router.get('/api/ready', (req, res) => {
+  try {
+    db.prepare('SELECT 1').get();
+    res.json(200, { ok: true, db: 'up', uptime: Math.round(process.uptime()) });
+  } catch (e) {
+    console.error('[ready] db check failed:', e.message);
+    res.json(503, { ok: false, db: 'down' });
+  }
+});
 
 // ---------- request dispatch ----------
 const server = http.createServer(async (req, res) => {
