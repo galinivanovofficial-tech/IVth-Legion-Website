@@ -16,6 +16,7 @@ import { startJobs } from './jobs.js';
 import { db } from './db.js';
 import { registerDataFileRoutes } from './data-refresh.js';
 import { registerAccessRoutes } from './access.js';
+import { registerHeartbeatRoutes } from './heartbeat.js';
 
 // ---------- tiny router ----------
 const routes = [];
@@ -107,6 +108,7 @@ registerEducationRoutes(router);
 registerTradeRoutes(router);
 registerMacroRoutes(router);
 registerDataFileRoutes(router);
+registerHeartbeatRoutes(router);
 registerAccessRoutes(router);
 // liveness: "is the process alive?" Keep it tiny, never expose config.
 router.get('/api/health', (req, res) => res.json(200, { ok: true }));
