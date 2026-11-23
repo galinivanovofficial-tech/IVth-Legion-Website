@@ -1,0 +1,9 @@
+.git
+data
+*.db
+*.db-wal
+*.db-shm
+deploy
+tools
+render.yaml
+Procfile

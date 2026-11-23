@@ -28,5 +28,7 @@ window.Legion = (function () {
     window.location.href = url;
   }
 
-  return { api, me, register, login, logout, updateProfile, startCheckout, openPortal };
+  const redeem = (code) => api('/api/access/redeem', { method: 'POST', body: { code } });
+
+  return { api, me, register, login, logout, updateProfile, startCheckout, openPortal, redeem };
 })();

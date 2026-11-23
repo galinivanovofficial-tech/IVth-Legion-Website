@@ -2,6 +2,7 @@
 // Handles: single-use invite links, join capture, leaked-link guard, member removal.
 import { config } from './config.js';
 import { Users, Audit, now } from './db.js';
+import { hasRight } from './access.js';
 
 const T = config.telegram;
 
@@ -61,12 +62,7 @@ async function kickIntruder(userId) {
   } catch (e) { console.error('[telegram] kickIntruder:', e.message); }
 }
 
-function hasAccess(u) {
-  if (!u) return false;
-  if (['active', 'trialing'].includes(u.subscription_status)) return true;
-  const graceCutoff = now() - config.graceDays * 86400;
-  return u.subscription_status === 'past_due' && u.current_period_end > graceCutoff;
-}
+const hasAccess = u => !!u && hasRight(u, 'telegram');
 
 // Handle a chat_member update (someone joined/left the group).
 async function onChatMember(upd) {
@@ -86,7 +82,8 @@ async function onChatMember(upd) {
       if (byHandle) user = byHandle;
     }
     if (user && hasAccess(user)) {
-      Users.update(user.id, { telegram_user_id: String(tgUser.id), telegram_joined: 1 });
+      // The single-use link is spent: clear it so the dashboard makes a fresh one if they ever need to rejoin.
+      Users.update(user.id, { telegram_user_id: String(tgUser.id), telegram_joined: 1, invite_link: '', invite_expires: 0 });
       Audit.log(user.id, 'telegram_joined');
       console.log(`[telegram] ${user.email} joined the group`);
     } else {

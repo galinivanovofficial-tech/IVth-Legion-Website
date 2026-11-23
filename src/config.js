@@ -47,7 +47,8 @@ export const config = {
   stripe: {
     secretKey: env.STRIPE_SECRET_KEY || '',
     priceId: env.STRIPE_PRICE_ID || '',                 // monthly price (price_...)
-    priceIdYearly: env.STRIPE_PRICE_ID_YEARLY || '',    // yearly price (price_...)
+    priceIdYearly: env.STRIPE_PRICE_ID_YEARLY || '',    // yearly price (price_...), not offered at the moment
+    priceIdAddon: env.STRIPE_PRICE_ID_ADDON || '',      // +100 EUR/month website add-on (price_...)
     webhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
     get enabled() { return Boolean(this.secretKey && this.priceId); },
   },
@@ -74,6 +75,7 @@ export const config = {
 
   // First admin account (optional) — this email becomes role=admin on register/login.
   adminEmail: (env.ADMIN_EMAIL || '').toLowerCase(),
+  hbToken: env.HB_TOKEN || '',            // shared secret for /api/hb and /api/events (machine-to-machine)
 
   seedTestUser: bool(env.SEED_TEST_USER, false),
 };

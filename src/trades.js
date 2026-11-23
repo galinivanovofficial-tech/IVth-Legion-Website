@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { db, now } from './db.js';
-import { requireAuth, publicUser } from './auth.js';
+import { requireRight } from './access.js';
 
 const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1H', '4H', '1D', '1W'];
 const MAX_TRADES = 5000;
@@ -29,13 +29,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_trades_user ON trades(user_id, entry_at);
 `);
 
-const isAdmin = u => u.role === 'admin' || (config.adminEmail && u.email.toLowerCase() === config.adminEmail);
-function requireMember(req, res) {
-  const user = requireAuth(req, res);
-  if (!user) return null;
-  if (!publicUser(user).hasAccess && !isAdmin(user)) { res.json(403, { error: 'An active membership is required.' }); return null; }
-  return user;
-}
+// Trades need the website right. When access ends the trades stay in the database untouched.
+const requireMember = (req, res) => requireRight(req, res, 'website');
 
 const num = v => (v === '' || v == null ? null : Number(v));
 const positive = v => v != null && Number.isFinite(v) && v > 0;

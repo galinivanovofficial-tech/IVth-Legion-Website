@@ -1,0 +1,70 @@
+// IVth Legion — ETH Cycle Bands
+//
+// Built on the open-source "Ethereum Logarithmic Regression Bands" by CryptoRiskAlert (TradingView, Aug 2025):
+// same formula and band widths, with lower slopes refitted so the bands follow ETH's latest cycles.
+//
+//   price = 10 ^ (a * ln(t) - b),   t = days since 3 Dec 2014
+//   Upper band (red)   a = 0.439 (orig 0.79)   b = -0.23 / -0.08   Jan 2018, May 2021, Nov 2021, Aug 2025 tops all within 4%
+//   Lower band (teal)  a = 1.328 (orig 1.38)   b = 7.61 / 7.91     2016, 2018, 2022, 2025, 2026 lows all within 9%
+//   Bottom extreme     a = 1.328               b = 8.099           through the 13 Mar 2020 wick ($88.20); no day traded below it
+//
+// The 2026 low is still forming: if ETH keeps falling, the lower band needs a refit.
+// The bands depend only on the date: use it on ETHUSD, log scale, daily or weekly.
+//
+//@version=5
+indicator("IVth Legion ETH Cycle Bands", shorttitle="IVL ETH Cycle", overlay=true)
+
+aUp    = input.float(0.439, "Upper band slope a", step=0.001)
+bUpTop = input.float(-0.23, "Upper band top b", step=0.01)
+bUpBot = input.float(-0.08, "Upper band bottom b", step=0.01)
+aLo    = input.float(1.328, "Lower band slope a", step=0.001)
+bLoTop = input.float(7.61, "Lower band top b", step=0.01)
+bLoBot = input.float(7.91, "Lower band bottom b", step=0.01)
+showX  = input.bool(true, "Draw the Mar 2020 extreme line")
+bXBot  = input.float(8.099, "Bottom extreme b", step=0.001)
+showTbl = input.bool(true, "Show table")
+
+origin = timestamp("UTC", 2014, 12, 3, 0, 0)
+tDays  = (time - origin) / 86400000.0
+lnt    = tDays > 1 ? math.log(tDays) : na
+bandAt(a, b) => math.pow(10, a * lnt - b)
+
+uTop = bandAt(aUp, bUpTop)
+uBot = bandAt(aUp, bUpBot)
+lTop = bandAt(aLo, bLoTop)
+lBot = bandAt(aLo, bLoBot)
+xBot = bandAt(aLo, bXBot)
+
+cRed  = #F87C6B
+cTeal = #62C4BE
+p1 = plot(uTop, "Upper band, top", color=cRed)
+p2 = plot(uBot, "Upper band, bottom", color=cRed)
+p3 = plot(lTop, "Lower band, top", color=cTeal)
+p4 = plot(lBot, "Lower band, bottom", color=cTeal)
+fill(p1, p2, color=color.new(cRed, 75), title="Upper band")
+fill(p3, p4, color=color.new(cTeal, 75), title="Lower band")
+plot(showX ? xBot : na, "Bottom extreme", color=#00c2ff, style=plot.style_circles, linewidth=1)
+
+zone = close > uTop ? "Above the upper band" : close >= uBot ? "Inside the upper band" : close > lTop ? "Between the bands" : close >= lBot ? "Inside the lower band" : close >= xBot ? "Below the lower band" : "Below the Mar 2020 extreme"
+zoneCol = close >= uBot ? cRed : close > lTop ? color.orange : close >= lBot ? cTeal : #00c2ff
+
+fmt(v) => (v >= 0 ? "+" : "") + str.tostring(v, "#.0") + "%"
+usd(v) => "$" + str.tostring(v, v >= 1000 ? "#,###" : "#.##")
+var table tb = table.new(position.bottom_right, 3, 7, bgcolor=color.new(#0d0d18, 10), border_color=color.new(#ffffff, 85), border_width=1)
+if showTbl and barstate.islast
+    table.cell(tb, 0, 0, "Line", text_color=color.silver, text_size=size.small)
+    table.cell(tb, 1, 0, "Today", text_color=color.silver, text_size=size.small)
+    table.cell(tb, 2, 0, "Price vs line", text_color=color.silver, text_size=size.small)
+    names = array.from("Upper, top", "Upper, bottom", "Lower, top", "Lower, bottom", "Mar 2020 extreme")
+    vals = array.from(uTop, uBot, lTop, lBot, xBot)
+    for i = 0 to 4
+        v = array.get(vals, i)
+        table.cell(tb, 0, i + 1, array.get(names, i), text_color=i < 2 ? cRed : i < 4 ? cTeal : #00c2ff, text_size=size.small)
+        table.cell(tb, 1, i + 1, usd(v), text_color=color.white, text_size=size.small)
+        table.cell(tb, 2, i + 1, fmt((close / v - 1) * 100), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 6, zone, text_color=zoneCol, text_size=size.small)
+    table.merge_cells(tb, 0, 6, 2, 6)
+
+alertcondition(ta.crossunder(low, lTop), "ETH entered the lower band", "ETH traded down into the lower band (bear-market low zone)")
+alertcondition(ta.crossover(high, uBot), "ETH entered the upper band", "ETH traded up into the upper band (bull-market peak zone)")
+alertcondition(ta.crossunder(low, xBot), "ETH below the Mar 2020 extreme", "ETH traded below the Mar 2020 extreme line, lower than any day in its history")

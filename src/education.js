@@ -8,7 +8,8 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { db, now } from './db.js';
-import { requireAuth, publicUser } from './auth.js';
+import { requireAuth } from './auth.js';
+import { requireRight } from './access.js';
 
 const COURSES = [
   { id: 'tech', docId: '1yLj0bF9J44-7NfLQgPMXSbuY73MUNUEW', icon: '📈', title: 'From Zero to God-Level Trader', subtitle: 'Technical mastery — structure, candles, patterns, indicators, confluence & risk' },
@@ -18,7 +19,7 @@ const COURSES = [
 const DIR = path.join(config.dataDir, 'education');
 const courseDir = id => path.join(DIR, id);
 const VOID = new Set(['img', 'br', 'hr', 'col', 'meta', 'link', 'input']);
-const CALLOUTS = [['IN PLAIN ENGLISH', 'plain'], ['KEY RULE', 'rule'], ['PRO TIP', 'tip'], ['WARNING', 'warn'], ['LIVE EXAMPLE', 'live']];
+const CALLOUTS = [['IN PLAIN ENGLISH', 'plain'], ['KEY RULE', 'rule'], ['PRO TIP', 'tip'], ['WARNING', 'warn'], ['LIVE EXAMPLE', 'live'], ['THE CALL', 'call']];
 const MODULE_RE = /^(ORIENTATION|PART\s+[0-9IVXLC]+|CHAPTER\s+\d+|REFERENCE|INTRODUCTION|CONCLUSION)\b\s*[:\-—–]?\s*(.*)$/i;
 
 db.exec(`
@@ -76,7 +77,7 @@ const clean = s => s.replace(/\s+/g, ' ').trim();
 const SMALL = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'vs', 'with']);
 // ALL-CAPS headings read as shouting in a lesson UI; title-case them, keeping short acronyms.
 const titleCase = s => (s !== s.toUpperCase() ? s : s.toLowerCase().split(' ').map((w, i, all) => {
-  if (/^(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|r:r|bmsb|fomo|rsi|macd)$/.test(w)) return w.toUpperCase();
+  if (/^([ivxlc]+|r:r|bmsb|fomo|rsi|macd)$/.test(w)) return w.toUpperCase();
   const startsPhrase = i === 0 || /^[—–-]$/.test(all[i - 1]) || /:$/.test(all[i - 1]);
   return !startsPhrase && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1);
 }).join(' '));
@@ -306,6 +307,19 @@ function convert(def, html) {
   };
 }
 
+// Build a course from HTML on disk instead of the Google Doc (src/import-course.js, fed by scripts/docx_to_html.py).
+export function importCourseHTML(id, html) {
+  const def = COURSES.find(c => c.id === id);
+  if (!def) throw new Error('Unknown course');
+  const next = convert(def, html);
+  if (!next.stats.lessons) throw new Error('No lessons found in the HTML');
+  const file = path.join(courseDir(id), 'course.json');
+  fs.writeFileSync(file + '.tmp', JSON.stringify(next));
+  fs.renameSync(file + '.tmp', file);
+  courses.set(id, next);
+  return next.stats;
+}
+
 export function syncCourse(id) {
   const def = COURSES.find(c => c.id === id);
   if (!def) return Promise.reject(new Error('Unknown course'));
@@ -345,12 +359,8 @@ async function getCourse(id) {
 
 // ---------- routes ----------
 const isAdmin = u => u.role === 'admin' || (config.adminEmail && u.email.toLowerCase() === config.adminEmail);
-function requireMember(req, res) {
-  const user = requireAuth(req, res);
-  if (!user) return null;
-  if (!publicUser(user).hasAccess && !isAdmin(user)) { res.json(403, { error: 'An active membership is required for the Academy.' }); return null; }
-  return user;
-}
+// The Academy (course) needs the education right: VIP code or admin.
+const requireMember = (req, res) => requireRight(req, res, 'education');
 function sendJSON(req, res, obj) {
   const body = JSON.stringify(obj);
   const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
@@ -360,7 +370,43 @@ function sendJSON(req, res, obj) {
 const query = req => new URL(req.url, 'http://x').searchParams;
 const allLessonIds = () => new Set([...courses.values()].flatMap(c => c.modules.flatMap(m => m.lessons.map(l => l.id))));
 
+// TradingView indicators members can download from the top of the Academy (Pine source in src/indicators).
+const INDICATORS = [
+  { id: 'bmsb-weekly', name: 'Bull Market Support Band (Weekly)', tag: 'Trend', chart: 'Any asset · daily or weekly chart',
+    what: 'The 20-week SMA (red) and 21-week EMA (green) with the band between them. Above the band = bull trend, below it = bear trend. Our main trend filter (course 5.3).' },
+  { id: 'bmsb-monthly', name: 'Bull Market Support Band (Monthly)', tag: 'Trend', chart: 'Gold, oil, indices · weekly or monthly chart',
+    what: 'The same band on monthly candles (20-month SMA, 21-month EMA). For slower assets where the weekly band is crossed too often.' },
+  { id: 'weekly-sma-50-200', name: 'Weekly SMA 50 / 200', tag: 'Trend', chart: 'Any asset · any timeframe',
+    what: 'The 50-week (blue) and 200-week (orange) averages with price labels. The 200W has marked every major Bitcoin bear-market low (course 5.2).' },
+  { id: 'btc-risk-metric', name: 'BTC Risk Metric', tag: 'Bitcoin', chart: 'BTC · daily or weekly chart',
+    what: 'Draws Bitcoin\'s price as dots coloured by its 0–1 risk: blue = low risk (accumulate), red = high risk (take profit). Always reads Bitcoin, whatever chart is open (course 9.4).' },
+  { id: 'btc-aqr', name: 'BTC Quantile Regression (AQR)', tag: 'Bitcoin', chart: 'BTC · daily or weekly chart, log scale',
+    what: 'Seven long-term price bands for Bitcoin, from the historic floor (Q1) to the speculative top (Q99). Shows how cheap or expensive BTC is against its whole history (course 9.1).' },
+  { id: 'eth-log-regression', name: 'ETH Log Regression Bands', tag: 'Ethereum', chart: 'ETH · daily or weekly chart, log scale',
+    what: 'Ethereum\'s long-term regression channel (green) plus two extreme bands: blue through the deepest low in ETH\'s history (Mar 2020, $88) and red through the current-cycle top. ETH has closed below the green channel only in Mar 2020 and Nov 2026. Same model as the ETH Regression Bands chart on the Charts page.' },
+  { id: 'eth-cycle-bands', name: 'ETH Cycle Bands', tag: 'Ethereum', chart: 'ETH · daily or weekly chart, log scale',
+    what: 'ETH\'s cycle bands with slopes refitted to the latest cycles: a red upper band where the 2018, 2021 and 2025 tops all came within 4%, a teal lower band where every bear-market low came within 9%, and a dashed line through the Mar 2020 crash wick. Same as the "Cycle bands" model on the ETH Regression Bands chart.' },
+];
+const indicatorFile = id => new URL(`./indicators/${id}.pine`, import.meta.url); // a file URL: safe with spaces in the path
+
 export function registerEducationRoutes(router) {
+  router.get('/api/education/indicators', (req, res) => {
+    const user = requireMember(req, res); if (!user) return;
+    res.json(200, { indicators: INDICATORS.filter(i => fs.existsSync(indicatorFile(i.id))) });
+  });
+
+  // ?f=<id> downloads the .pine file; &view=1 returns it as plain text for the "Copy code" button.
+  router.get('/api/education/indicator', (req, res) => {
+    const user = requireMember(req, res); if (!user) return;
+    const q = query(req), ind = INDICATORS.find(i => i.id === q.get('f'));
+    if (!ind || !fs.existsSync(indicatorFile(ind.id))) return res.json(404, { error: 'Unknown indicator' });
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'private, no-cache',
+      ...(q.get('view') ? {} : { 'Content-Disposition': `attachment; filename="IVth-Legion-${ind.id}.pine"` }),
+    });
+    fs.createReadStream(indicatorFile(ind.id)).pipe(res);
+  });
+
   router.get('/api/education/courses', async (req, res) => {
     const user = requireMember(req, res); if (!user) return;
     const list = await Promise.all(COURSES.map(async def => {

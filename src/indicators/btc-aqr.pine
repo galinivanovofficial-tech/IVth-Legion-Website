@@ -1,0 +1,139 @@
+// IVth Legion — BTC Asymmetric Quantile Regression
+//
+// Seven conditional-quantile price bands (Q1/Q10/Q25/Q50/Q75/Q95/Q99) fit on
+// BTC's full daily log-price history as a quadratic function of centered
+// log-time, with the curvature term shared within a lower-tail group
+// (Q1/Q10/Q25), a free median term, and shared within an upper-tail group
+// (Q75/Q95/Q99). The upper tail curves inward more sharply than the lower
+// tail, i.e. successive speculative peaks fall closer to the structural
+// center than the one before, while the lower tail rises in a near-straight
+// line in log-log space. Non-crossing is enforced every bar by sorting the
+// seven raw predictions into ascending order before they're drawn.
+//
+// FORMULA
+//   x            = ln(daysSinceGenesis) - 7.9914            // centered log-time
+//   log10(Qtau)  = c_tau + a_tau * x + b_tau * x^2
+//   b_tau        = bLo   for tau in {1,10,25}
+//                  bMed  for tau = 50
+//                  bHi   for tau in {75,95,99}
+//   price        = 10 ^ log10(Qtau), then the 7 values are sorted ascending
+//                  per bar (rearrangement) to guarantee Q1 <= Q10 <= ... <= Q99
+//
+//@version=5
+indicator("IVth Legion BTC Quantile Regression", shorttitle="IVL AQR", overlay=true, max_bars_back=5000)
+
+btcSym = input.symbol("INDEX:BTCUSD", "Bitcoin data source", tooltip="Bands are ALWAYS computed on this symbol's daily data, regardless of the chart's own symbol/timeframe.")
+showLabels = input.bool(true, "Show quantile price labels")
+showGoldenZone = input.bool(true, "Show historical dislocation zone below Q1%", tooltip="Four reference lines below the Q1% band marking the deepest historical undershoots below Q1% on record (as a fixed % below Q1%, so they move with the curve): -7.35%, -17.4%, -22.6%, -34.6%.")
+
+f_daily() =>
+    genesis = timestamp("UTC", 2009, 1, 1, 0, 0)
+    ageDays = math.max(1.0, (time - genesis) / 86400000.0)
+    x = math.log(ageDays) - 7.9914
+    bLo = -0.0241
+    bMed = -0.1126
+    bHi = -0.3259
+    lq1 = 2.837 + 2.578 * x + bLo * x * x
+    lq10 = 2.933 + 2.552 * x + bLo * x * x
+    lq25 = 3.004 + 2.554 * x + bLo * x * x
+    lq50 = 3.214 + 2.482 * x + bMed * x * x
+    lq75 = 3.562 + 2.283 * x + bHi * x * x
+    lq95 = 3.897 + 1.964 * x + bHi * x * x
+    lq99 = 4.028 + 1.904 * x + bHi * x * x
+    arr = array.from(lq1, lq10, lq25, lq50, lq75, lq95, lq99)
+    array.sort(arr)
+    rq1 = math.pow(10, array.get(arr, 0))
+    rq10 = math.pow(10, array.get(arr, 1))
+    rq25 = math.pow(10, array.get(arr, 2))
+    rq50 = math.pow(10, array.get(arr, 3))
+    rq75 = math.pow(10, array.get(arr, 4))
+    rq95 = math.pow(10, array.get(arr, 5))
+    rq99 = math.pow(10, array.get(arr, 6))
+    [close, rq1, rq10, rq25, rq50, rq75, rq95, rq99]
+
+[btcClose, q1, q10, q25, q50, q75, q95, q99] = request.security(btcSym, "D", f_daily(), lookahead=barmerge.lookahead_off)
+
+colQ1 = #0b6623
+colQ10 = #3f9142
+colQ25 = #8fbf6b
+colQ50 = #d9d9d9
+colQ75 = #e0a458
+colQ95 = #d1495b
+colQ99 = #8b0000
+
+pQ1 = plot(q1, "Q1%", color = colQ1, linewidth = 1)
+pQ10 = plot(q10, "Q10%", color = colQ10, linewidth = 1)
+pQ25 = plot(q25, "Q25%", color = colQ25, linewidth = 1)
+pQ50 = plot(q50, "Q50% (median)", color = colQ50, linewidth = 2)
+pQ75 = plot(q75, "Q75%", color = colQ75, linewidth = 1)
+pQ95 = plot(q95, "Q95%", color = colQ95, linewidth = 1)
+pQ99 = plot(q99, "Q99%", color = colQ99, linewidth = 1)
+
+fill(pQ1, pQ10, color.new(colQ1, 90), "Q1-Q10")
+fill(pQ10, pQ25, color.new(colQ10, 90), "Q10-Q25")
+fill(pQ25, pQ50, color.new(colQ25, 90), "Q25-Q50")
+fill(pQ50, pQ75, color.new(colQ75, 90), "Q50-Q75")
+fill(pQ75, pQ95, color.new(colQ95, 90), "Q75-Q95")
+fill(pQ95, pQ99, color.new(colQ99, 90), "Q95-Q99")
+
+// ── Golden zone: historical undershoot depths below Q1%, as fixed % offsets
+//    of the Q1% curve itself, so the zone moves with the model over time.
+goldCol = #d4af37
+gz1 = q1 * (1 - 0.0735)
+gz2 = q1 * (1 - 0.174)
+gz3 = q1 * (1 - 0.226)
+gz4 = q1 * (1 - 0.346)
+
+pGz1 = plot(showGoldenZone ? gz1 : na, "Dislocation -7.35%", color = color.new(goldCol, 40), linewidth = 1)
+plot(showGoldenZone ? gz2 : na, "Dislocation -17.4%", color = color.new(goldCol, 60), linewidth = 1)
+plot(showGoldenZone ? gz3 : na, "Dislocation -22.6%", color = color.new(goldCol, 60), linewidth = 1)
+pGz4 = plot(showGoldenZone ? gz4 : na, "Dislocation -34.6%", color = color.new(goldCol, 40), linewidth = 1)
+fill(pGz1, pGz4, color.new(goldCol, 88), "Golden zone")
+
+if showGoldenZone and showLabels and barstate.islast
+    label.new(bar_index + 5, gz1, "-7.35%", textcolor = goldCol, style = label.style_none, size = size.tiny)
+    label.new(bar_index + 5, gz4, "-34.6%", textcolor = goldCol, style = label.style_none, size = size.tiny)
+
+f_position(px, v1, v10, v25, v50, v75, v95, v99) =>
+    lp = math.log10(px)
+    taus = array.from(1.0, 10.0, 25.0, 50.0, 75.0, 95.0, 99.0)
+    lvls = array.from(math.log10(v1), math.log10(v10), math.log10(v25), math.log10(v50), math.log10(v75), math.log10(v95), math.log10(v99))
+    n = array.size(lvls)
+    pct = 50.0
+    if lp <= array.get(lvls, 0)
+        seg = (array.get(taus, 1) - array.get(taus, 0)) / (array.get(lvls, 1) - array.get(lvls, 0))
+        pct := array.get(taus, 0) + (lp - array.get(lvls, 0)) * seg
+    else if lp >= array.get(lvls, n - 1)
+        seg = (array.get(taus, n - 1) - array.get(taus, n - 2)) / (array.get(lvls, n - 1) - array.get(lvls, n - 2))
+        pct := array.get(taus, n - 1) + (lp - array.get(lvls, n - 1)) * seg
+    else
+        for i = 0 to n - 2
+            lo = array.get(lvls, i)
+            hi = array.get(lvls, i + 1)
+            if lp >= lo and lp <= hi
+                t0 = array.get(taus, i)
+                t1 = array.get(taus, i + 1)
+                pct := t0 + (lp - lo) / (hi - lo) * (t1 - t0)
+    math.max(0.0, math.min(100.0, pct))
+
+posPct = f_position(btcClose, q1, q10, q25, q50, q75, q95, q99)
+sinceQ1 = ta.barssince(btcClose <= q1)
+
+var table tb = table.new(position.top_right, 2, 3, frame_color = color.new(color.gray, 40), frame_width = 1, bgcolor = color.new(color.black, 15))
+if barstate.islast
+    posColor = posPct < 25 ? colQ1 : posPct < 45 ? colQ25 : posPct < 55 ? colQ50 : posPct < 75 ? colQ75 : colQ99
+    table.cell(tb, 0, 0, "Position", text_color = color.white, text_size = size.small)
+    table.cell(tb, 1, 0, str.tostring(posPct, "0.0") + "th pct", text_color = posColor, text_size = size.small)
+    table.cell(tb, 0, 1, "Since Q1% Touch", text_color = color.white, text_size = size.small)
+    table.cell(tb, 1, 1, na(sinceQ1) ? "-" : str.tostring(sinceQ1) + " bars", text_color = color.gray, text_size = size.small)
+    table.cell(tb, 0, 2, "Q1% Level", text_color = color.white, text_size = size.small)
+    table.cell(tb, 1, 2, "$" + str.tostring(math.round(q1)), text_color = colQ1, text_size = size.small)
+
+if showLabels and barstate.islast
+    label.new(bar_index + 5, q99, "Q99  $" + str.tostring(math.round(q99)), textcolor = colQ99, style = label.style_none, size = size.small)
+    label.new(bar_index + 5, q95, "Q95  $" + str.tostring(math.round(q95)), textcolor = colQ95, style = label.style_none, size = size.small)
+    label.new(bar_index + 5, q75, "Q75  $" + str.tostring(math.round(q75)), textcolor = colQ75, style = label.style_none, size = size.small)
+    label.new(bar_index + 5, q50, "Q50  $" + str.tostring(math.round(q50)), textcolor = colQ50, style = label.style_none, size = size.small)
+    label.new(bar_index + 5, q25, "Q25  $" + str.tostring(math.round(q25)), textcolor = colQ25, style = label.style_none, size = size.small)
+    label.new(bar_index + 5, q10, "Q10  $" + str.tostring(math.round(q10)), textcolor = colQ10, style = label.style_none, size = size.small)
+    label.new(bar_index + 5, q1, "Q1  $" + str.tostring(math.round(q1)), textcolor = colQ1, style = label.style_none, size = size.small)

@@ -433,7 +433,87 @@ async function getYtdRoi(asset) {
   });
 }
 
+// ---------- BTC daily closes (Bitstamp, from 2013) for the mega-IPO and government-shutdown charts ----------
+async function getBtcDaily() {
+  return cached('btc:daily', 6 * 3600, async () => {
+    const out = [];
+    let start = Math.floor(Date.UTC(2013, 0, 1) / 1000);
+    const end = Math.floor(Date.now() / 1000);
+    while (start < end) {
+      const d = await fetchJSON(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit=1000&start=${start}`);
+      const bars = d?.data?.ohlc || [];
+      if (!bars.length) break;
+      for (const b of bars) {
+        const ts = Number(b.timestamp), close = parseFloat(b.close);
+        if (ts && close > 0) out.push([new Date(ts * 1000).toISOString().slice(0, 10), Math.round(close * 100) / 100]);
+      }
+      start = Number(bars[bars.length - 1].timestamp) + 86400;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    const seen = new Set();
+    return out.filter(([d]) => !seen.has(d) && seen.add(d)); // [["2018-01-01", 13880.0], ...] oldest first
+  });
+}
+
+// ---------- ETH daily [date, high, low, close] for the ETH log-regression chart ----------
+// Coin Metrics closes before Bitstamp's ETH market opened (Aug 2017), Bitstamp OHLC after it (keeps real wicks, e.g. $88.20 on 13 Mar 2020).
+async function getEthDaily() {
+  return cached('eth:daily', 6 * 3600, async () => {
+    const out = [];
+    const cm = await fetchJSON('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=eth&metrics=PriceUSD&frequency=1d&page_size=10000&start_time=2015-08-07&end_time=2017-08-15');
+    for (const r of cm?.data || []) { const c = parseFloat(r.PriceUSD); if (c > 0) out.push([r.time.slice(0, 10), c, c, c]); }
+    let start = Math.floor(Date.UTC(2017, 7, 16) / 1000);
+    const end = Math.floor(Date.now() / 1000);
+    while (start < end) {
+      const d = await fetchJSON(`https://www.bitstamp.net/api/v2/ohlc/ethusd/?step=86400&limit=1000&start=${start}`);
+      const bars = d?.data?.ohlc || [];
+      if (!bars.length) break;
+      for (const b of bars) {
+        const ts = Number(b.timestamp), h = parseFloat(b.high), l = parseFloat(b.low), c = parseFloat(b.close);
+        if (ts && c > 0) out.push([new Date(ts * 1000).toISOString().slice(0, 10), h, l, c]);
+      }
+      start = Number(bars[bars.length - 1].timestamp) + 86400;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    if (out.length < 3000) throw new Error('ETH history incomplete (' + out.length + ' days)');
+    const seen = new Set();
+    return out.filter(([d]) => !seen.has(d) && seen.add(d));
+  });
+}
+
+// ---------- YouTube: latest uploads of the Galin IVNV channel (public RSS feed, no API key, 15 newest) ----------
+const YT_CHANNEL = { id: 'UCsnbRriY3NlDJiYylQOP6zw', handle: '@galin_ivnv', name: 'Galin IVNV' };
+async function getYouTube() {
+  return cached('yt:' + YT_CHANNEL.id, 300, async () => {
+    const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${YT_CHANNEL.id}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`YouTube feed HTTP ${r.status}`);
+    const xml = await r.text();
+    const tag = (e, re) => (e.match(re) || [])[1] || '';
+    const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(([, e]) => ({
+      id: tag(e, /<yt:videoId>([^<]+)/),
+      title: decodeXml(tag(e, /<media:title>([^<]*)/)),
+      published: tag(e, /<published>([^<]+)/),
+      views: Number(tag(e, /views="(\d+)"/)) || 0,
+      short: tag(e, /<link rel="alternate" href="([^"]+)/).includes('/shorts/'),
+    })).filter(v => /^[\w-]{11}$/.test(v.id))
+      .sort((a, b) => b.published.localeCompare(a.published)); // newest first
+    return { channel: { ...YT_CHANNEL, url: `https://www.youtube.com/${YT_CHANNEL.handle}` }, videos };
+  });
+}
+
 export function registerMarketRoutes(router) {
+  router.get('/api/markets/youtube', async (req, res) => {
+    try { res.json(200, await getYouTube()); }
+    catch (e) { console.error('[markets] youtube:', e.message); res.json(502, { error: 'Videos are unavailable right now.' }); }
+  });
+  router.get('/api/markets/btc-daily', async (req, res) => {
+    try { res.json(200, { days: await getBtcDaily() }); }
+    catch (e) { console.error('[markets] btc-daily:', e.message); res.json(502, { error: 'BTC history unavailable' }); }
+  });
+  router.get('/api/markets/eth-daily', async (req, res) => {
+    try { res.json(200, { days: await getEthDaily() }); }
+    catch (e) { console.error('[markets] eth-daily:', e.message); res.json(502, { error: 'ETH history unavailable' }); }
+  });
   router.get('/api/markets/fng', async (req, res) => {
     try { res.json(200, await getFearGreed()); }
     catch (e) { console.error('[markets] fng:', e.message); res.json(502, { error: 'fear & greed unavailable' }); }

@@ -73,7 +73,7 @@ window.LegionOrderflow = (function () {
 
   // ── Data ─────────────────────────────────────────────────────────
   async function getJSON(u) {
-    const r = await fetch(u);
+    const r = await fetch(u, { referrerPolicy: 'no-referrer' }); // Binance refuses some Referer hosts (e.g. sslip.io)
     if (!r.ok) throw new Error(u + ' → ' + r.status);
     return r.json();
   }
@@ -1560,6 +1560,20 @@ window.LegionOrderflow = (function () {
       if (onPriceAxis(p)) { yScale = null; requestRender(); }
       else if (onTimeAxis(p)) { view.bars = defaultBars(); requestRender(); }
       else resetView();
+    });
+    // Shift + drag selects candles to zoom into; right-click resets the view (plain drag keeps panning)
+    if (window.LegionZoom) LegionZoom.attach(canvas, {
+      shift: true,
+      plot: () => ({ l: 0, r: geo.plotW || 0 }),
+      onZoom: (a, b) => {
+        const idx = x => x / geo.barW - 0.5 + (geo.vEnd - geo.N + 1);
+        const i1 = Math.max(0, Math.round(idx(a))), i2 = Math.min(bars.length - 1, Math.round(idx(b)));
+        view.bars = clampBars(i2 - i1 + 1);
+        view.offset = clampOffset(bars.length - 1 - i2);
+        yScale = null;
+        requestRender();
+      },
+      onReset: resetView,
     });
     new ResizeObserver(requestRender).observe(canvas.parentElement);
     window.addEventListener('resize', requestRender);

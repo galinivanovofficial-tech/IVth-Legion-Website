@@ -100,7 +100,7 @@ window.LegionTracker = (function () {
     const syms = [...new Set(trades.filter(t => !isClosed(t) && /^[A-Z0-9]+USDT$/.test(t.symbol)).map(t => t.symbol))];
     if (!syms.length || !root.offsetParent) return;
     try {
-      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbols=' + encodeURIComponent(JSON.stringify(syms)));
+      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbols=' + encodeURIComponent(JSON.stringify(syms)), { referrerPolicy: 'no-referrer' });
       if (!r.ok) return;
       for (const p of await r.json()) live[p.symbol] = +p.price;
       renderList();

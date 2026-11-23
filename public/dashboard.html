@@ -8,11 +8,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <!-- BTC Chart Engine -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script src="btc-chart.js?v=4"></script>
-  <script src="orderflow-chart.js?v=28"></script>
-  <script src="education.js?v=6"></script>
-  <script src="trade-tracker.js?v=4"></script>
-  <script src="macro-hub.js?v=8"></script>
+  <script src="chart-zoom.js?v=1"></script>
+  <script src="btc-chart.js?v=6"></script>
+  <script src="orderflow-chart.js?v=30"></script>
+  <script src="education.js?v=7"></script>
+  <script src="trade-tracker.js?v=5"></script>
+  <script src="macro-hub.js?v=10"></script>
+  <script src="key-dates.js?v=2"></script>
   <style>
     :root {
       --gold: #c9a84c;
@@ -373,6 +375,22 @@
     }
 
     .dash-grid-full { grid-column: 1 / -1; }
+    .kd-list { padding:6px 20px 12px; }
+    .kd-row { display:grid; grid-template-columns:92px 1fr auto; gap:14px; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .kd-row:last-child { border-bottom:none; }
+    .kd-row.soon .kd-left { color:var(--gold); font-weight:700; }
+    .kd-when { display:flex; flex-direction:column; }
+    .kd-day { font:600 13px 'Inter',sans-serif; color:var(--text); }
+    .kd-time { font-size:11.5px; color:var(--text-muted); }
+    .kd-label { font:700 14px 'Inter',sans-serif; color:var(--text); }
+    .kd-period { font-weight:500; font-size:11.5px; color:var(--text-muted); margin-left:4px; }
+    .kd-items { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:4px; font-size:12px; color:var(--text-muted); }
+    .kd-items b { color:var(--text); font-weight:600; margin-right:3px; }
+    .kd-last { margin-top:3px; font-size:11.5px; color:var(--text-muted); opacity:.8; }
+    .kd-left { font-size:12.5px; color:var(--text-muted); white-space:nowrap; text-align:right; }
+    .kd-live { color:#ef5350; font-weight:700; }
+    .kd-empty { padding:24px 0; text-align:center; color:var(--text-muted); font-size:12.5px; }
+    @media (max-width:600px) { .kd-row { grid-template-columns:70px 1fr; } .kd-left { grid-column:2; text-align:left; } }
 
     /* Panels */
     .panel {
@@ -863,6 +881,20 @@
     .edu-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(201,168,76,0.25); }
     .edu-btn.ghost { background:transparent; color:#1fb886; border:1px solid rgba(31,184,134,0.45); }
     .edu-section-title { font-family:'Cinzel',serif; font-size:16px; color:var(--text); margin:30px 0 14px; letter-spacing:.05em; }
+    .edu-ind-lead { color:var(--text-muted); font-size:13.5px; margin:-6px 0 14px; max-width:760px; line-height:1.55; }
+    .edu-ind-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+    .edu-ind { display:flex; flex-direction:column; gap:7px; padding:16px; background:var(--dark2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; }
+    .edu-ind-tag { align-self:flex-start; font:700 10px 'Inter',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); border:1px solid rgba(201,168,76,0.35); border-radius:20px; padding:2px 9px; }
+    .edu-ind-name { font:700 15px 'Inter',sans-serif; color:var(--text); }
+    .edu-ind-chart { font-size:12px; color:var(--text-muted); }
+    .edu-ind-what { font-size:13px; line-height:1.5; color:var(--text); opacity:.85; flex:1; }
+    .edu-ind-btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+    .edu-ind-btns .edu-btn { padding:8px 14px; font-size:12px; text-decoration:none; }
+    .edu-ind-how { margin-top:16px; padding:14px 18px; background:var(--dark2); border:1px solid rgba(201,168,76,0.25); border-radius:10px; font-size:13.5px; line-height:1.6; }
+    .edu-ind-how summary { cursor:pointer; font-weight:700; color:var(--gold); }
+    .edu-ind-how ol { margin:10px 0 6px 20px; padding:0; }
+    .edu-ind-how li { margin:4px 0; }
+    .edu-ind-note { color:var(--text-muted); font-size:12.5px; margin:8px 0 0; }
     .edu-modules { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
     .edu-mcard { display:flex; flex-direction:column; gap:6px; text-align:left; padding:16px; background:var(--dark2); border:1px solid rgba(255,255,255,0.06); border-radius:10px; cursor:pointer; color:inherit; font-family:'Inter',sans-serif; transition:border-color .2s, transform .2s; }
     .edu-mcard:hover { border-color:var(--border); transform:translateY(-2px); }
@@ -902,6 +934,7 @@
     .edu-tip { background:rgba(31,184,134,0.07); border-color:rgba(31,184,134,0.3); border-left-color:#1fb886; } .edu-tip .edu-callout-label { color:#3fd6a3; }
     .edu-warn { background:rgba(239,79,90,0.07); border-color:rgba(239,79,90,0.3); border-left-color:#ef4f5a; } .edu-warn .edu-callout-label { color:#ff7b84; }
     .edu-live { background:rgba(176,124,255,0.07); border-color:rgba(176,124,255,0.3); border-left-color:#b07cff; } .edu-live .edu-callout-label { color:#c9a6ff; }
+    .edu-call { background:rgba(201,162,39,0.07); border-color:rgba(201,162,39,0.3); border-left-color:#c9a227; } .edu-call .edu-callout-label { color:#e3c96b; } .edu-call p { font-style:italic; }
     .edu-fig { margin:26px 0; }
     .edu-fig img { width:100%; height:auto; border-radius:10px; border:1px solid rgba(255,255,255,0.08); cursor:zoom-in; background:#0d0d18; }
     .edu-fig figcaption { font-size:13px; line-height:1.6; color:var(--text-muted); margin-top:10px; }
@@ -1839,7 +1872,97 @@
     .mh-al-f { margin-top:10px; display:flex; justify-content:flex-end; }
     @media (max-width: 1100px) { .mh-cal { grid-template-columns:minmax(0,1fr); } .mh-side { position:static; } }
     @media (max-width: 600px) { .mh-tz-note { margin-left:0; width:100%; } .mh-table td, .mh-table th { padding:7px 7px; } .mh-chart-v { font-size:17px; } }
-  </style>
+  
+    /* ── BTC vs mega IPOs ── */
+    .ipo-root { padding:14px 16px 6px; }
+    .ipo-ctl { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+    .ipo-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
+    .ipo-lbl { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-left:6px; }
+    .ipo-row .ipo-lbl:first-child { margin-left:0; }
+    .ipo-input { background:var(--dark3); color:var(--text); border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:5px 8px; font:12px 'Inter',sans-serif; }
+    .ipo-check { display:flex; align-items:center; gap:6px; font-size:12px; color:#b9bdd6; margin-left:8px; cursor:pointer; }
+    .ipo-check input { accent-color:var(--gold); }
+    .ipo-legend { display:flex; flex-wrap:wrap; gap:6px; }
+    .ipo-key { display:flex; align-items:center; gap:6px; background:var(--dark3); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:4px 10px; color:var(--text); font:600 12px 'Inter',sans-serif; cursor:pointer; }
+    .ipo-key i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .ipo-key span { font-weight:400; color:var(--text-muted); }
+    .ipo-key.off { opacity:.4; }
+    .ipo-wrap { position:relative; height:420px; }
+    .ipo-wrap canvas { width:100%; height:100%; display:block; cursor:crosshair; }
+    .ipo-tip { display:none; position:absolute; top:6px; background:rgba(13,13,24,0.95); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:12px; pointer-events:none; min-width:200px; }
+    .ipo-tip div { margin-top:3px; white-space:nowrap; }
+    .ipo-tip i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+    .ipo-tip span { color:var(--text-muted); }
+    .ipo-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
+    .ipo-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:600; padding:7px 10px; border-bottom:1px solid var(--border2); }
+    .ipo-table td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:top; }
+    .ipo-table .r { text-align:right; white-space:nowrap; }
+    .ipo-table .up { color:var(--green); } .ipo-table .down { color:var(--red); }
+    .ipo-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+    .ipo-dim { color:var(--text-muted); font-size:11px; }
+    .ipo-stats { overflow-x:auto; }
+    .ipo-note { font-size:11.5px; line-height:1.55; color:var(--text-muted); margin:12px 0 8px; }
+    @media (max-width: 600px) { .ipo-wrap { height:320px; } .ipo-table th, .ipo-table td { padding:6px 5px; } }
+      .lz-box { display:none; position:absolute; background:rgba(201,168,76,0.14); border-left:1px solid rgba(201,168,76,0.7); border-right:1px solid rgba(201,168,76,0.7); pointer-events:none; z-index:5; }
+      /* ── Latest YouTube videos ── */
+    .yt-panel { margin-top:20px; }
+    .yt-head-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .yt-head-right .chart-tab span { opacity:.6; font-size:11px; margin-left:2px; }
+    .yt-head-right .panel-action { margin-left:6px; text-decoration:none; }
+    .yt-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; padding:16px 20px 6px; }
+    @media (max-width: 1100px) { .yt-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 480px) { .yt-grid { grid-template-columns:1fr; } }
+    .yt-card { min-width:0; }
+    .yt-thumb { position:relative; display:block; aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:#000; border:1px solid var(--border2); }
+    .yt-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .25s, opacity .25s; opacity:.92; }
+    .yt-thumb:hover img { transform:scale(1.04); opacity:1; }
+    .yt-thumb:hover .yt-btn { background:#ff0000; }
+    .yt-thumb iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+    .yt-play { position:absolute; inset:0; width:100%; height:100%; padding:0; border:0; background:#000; cursor:pointer; }
+    .yt-play img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .25s, opacity .25s; opacity:.92; }
+    .yt-play:hover img { transform:scale(1.04); opacity:1; }
+    .yt-btn { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:52px; height:36px; border-radius:10px; background:rgba(204,0,0,0.9); color:#fff; font-size:16px; display:flex; align-items:center; justify-content:center; }
+    .yt-tag, .yt-new { position:absolute; top:8px; font:700 10px 'Inter',sans-serif; letter-spacing:.05em; border-radius:4px; padding:2px 6px; }
+    .yt-tag { left:8px; background:rgba(0,0,0,0.75); color:#fff; }
+    .yt-new { right:8px; background:var(--gold); color:#111; }
+    .yt-title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:8px; color:var(--text); font-size:13.5px; font-weight:600; line-height:1.35; text-decoration:none; }
+    .yt-title:hover { color:var(--gold-light); }
+    .yt-meta { font-size:11.5px; color:var(--text-muted); margin-top:3px; }
+    .yt-empty { grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted); font-size:13px; }
+    .yt-foot { font-size:11px; color:var(--text-muted); padding:4px 20px 14px; }
+  /* Macro Flash banner */
+.flash-bar{position:sticky;top:0;z-index:1000;background:#1b1f2b;border-bottom:2px solid #e3c96b;color:#e6e8ee;padding:10px 16px;font-size:14px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.flash-bar[data-tone=hot]{border-color:#ef5350}.flash-bar[data-tone=cool]{border-color:#26a69a}
+.fl-head{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;padding-right:30px}
+.fl-dot{width:9px;height:9px;border-radius:50%;background:#e3c96b;animation:flpulse 1.2s infinite}
+.flash-bar[data-tone=hot] .fl-dot{background:#ef5350}
+.flash-bar[data-tone=cool] .fl-dot{background:#26a69a}
+.fl-verdict{font-weight:700;letter-spacing:.02em;color:#e3c96b}
+.flash-bar[data-tone=hot] .fl-verdict{color:#ef5350}.flash-bar[data-tone=cool] .fl-verdict{color:#26a69a}
+.fl-time{margin-left:auto;opacity:.6;font-variant-numeric:tabular-nums}
+.fl-x{position:absolute;top:6px;right:8px;background:none;border:0;color:inherit;font-size:22px;line-height:1;cursor:pointer;opacity:.7;padding:4px 6px}
+.fl-rows{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:6px;font-variant-numeric:tabular-nums}
+.fl-rows i{font-style:normal;opacity:.65}.fl-exp{opacity:.55;font-size:12px}
+@keyframes flpulse{50%{opacity:.3}}
+@media(max-width:600px){.fl-time{margin-left:0}}
+/* MVRV Z-Score formula box */
+.mvz-explain{margin:0 16px 18px;border:1px solid rgba(227,201,107,.25);border-radius:10px;padding:14px 16px;background:rgba(227,201,107,.04);font-size:13px;line-height:1.55;color:var(--text-dim,#a6abbd);overflow:hidden;min-width:0}
+.mvz-explain h4{margin:0 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#e3c96b}
+.mvz-explain p{margin:0 0 6px}
+.mvz-explain b{color:var(--text,#e6e8ee)}
+.mvz-eq{margin:12px 0;padding:12px;border-radius:8px;background:rgba(0,0,0,.25);text-align:center;font-size:15px;color:var(--text,#e6e8ee);overflow-x:auto;white-space:nowrap}
+.mvz-eq .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin-left:6px}
+.mvz-eq .frac span:first-child{border-bottom:1px solid currentColor;padding:0 6px 3px}.mvz-eq .frac span:last-child{padding:3px 6px 0}
+.mvz-explain ul{margin:6px 0 4px;padding-left:18px}
+.mvz-steps{width:100%;border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums}
+.mvz-steps td{padding:6px 8px;border-top:1px solid rgba(255,255,255,.06);vertical-align:top}
+.mvz-steps td:last-child{text-align:right;white-space:nowrap;color:var(--text,#e6e8ee);font-weight:600}
+.mvz-steps tr.res td{border-top:1px solid rgba(227,201,107,.4);color:#e3c96b;font-size:14px}
+@media(max-width:600px){.mvz-steps td:nth-child(2){display:none}.mvz-explain{margin:0 10px 14px;padding:12px}.mvz-eq{font-size:13px;padding:10px 6px}}
+/* Shutdown chart: average row + multi-paragraph note */
+.ipo-table tr.sd-avg td{border-top:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.03)}
+div.ipo-note p{margin:0 0 8px}
+</style>
 </head>
 <body>
 <script>try { if (localStorage.getItem('legionSidebarCollapsed') === '1') document.body.classList.add('sidebar-collapsed'); } catch (e) {}</script>
@@ -1893,7 +2016,7 @@
     <a class="nav-item" onclick="showSection('calendar')" href="#">
       <span class="nav-item-icon">🗓</span> Calendars
     </a>
-    <a class="nav-item" onclick="showSection('education')" href="#">
+    <a class="nav-item" id="nav-education" onclick="showSection('education')" href="#">
       <span class="nav-item-icon">🎓</span> Education
     </a>
 
@@ -1993,10 +2116,12 @@
       <div class="dash-grid">
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">📊 BTC/USD — Live Chart</span>
-            <span class="panel-badge">TradingView</span>
+            <span class="panel-title">📅 Key Dates — US Macro</span>
+            <button class="panel-action" onclick="showSection('calendar')">Full calendar</button>
           </div>
-          <div class="chart-container" id="overview-chart"></div>
+          <div class="panel-body kd-list" id="keydates-root">
+            <div class="kd-empty">Loading…</div>
+          </div>
         </div>
         <div>
           <!-- Quick news -->
@@ -2011,6 +2136,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Latest YouTube videos (Galin IVNV), newest first -->
+      <div class="panel yt-panel" id="yt-root"></div>
     </div>
 
     <!-- ═══ BTC LEVELS SECTION ═══ -->
@@ -2069,7 +2197,7 @@
       <div class="panel of-panel">
         <div id="of-chart"></div>
       </div>
-      <p class="of-tips"><b>Scroll</b> zoom time · <b>Drag chart</b> pan (up/down moves price) · <b>Drag price axis</b> stretch price · <b>Scroll on price axis</b> zoom price · <b>Drag time axis</b> stretch time · <b>AUTO</b> or double-click an axis to reset</p>
+      <p class="of-tips"><b>Scroll</b> zoom time · <b>Shift + drag</b> zoom into a range · <b>Right-click</b> reset · <b>Drag chart</b> pan (up/down moves price) · <b>Drag price axis</b> stretch price · <b>Scroll on price axis</b> zoom price · <b>Drag time axis</b> stretch time · <b>AUTO</b> or double-click an axis to reset</p>
       <div class="panel of-score-panel">
         <div class="panel-header"><span class="panel-title">Divergence Scorecard</span><span class="panel-badge">Does the signal actually work?</span></div>
         <div id="of-score" class="of-score"></div>
@@ -2159,6 +2287,113 @@
         <button class="chart-tab active" onclick="switchChartTab('supplyPL', this)">BTC Supply in Profit/Loss</button>
         <button class="chart-tab" onclick="switchChartTab('ytdROI', this)">Year-to-Date ROI</button>
         <button class="chart-tab" onclick="switchChartTab('fng', this)">Fear & Greed</button>
+        <button class="chart-tab" onclick="switchChartTab('ipo', this)">BTC vs Mega IPOs</button>
+        <button class="chart-tab" onclick="switchChartTab('shutdown', this)">BTC vs Gov Shutdowns</button>
+        <button class="chart-tab" onclick="switchChartTab('terminal', this)">Terminal Price</button>
+        <button class="chart-tab" onclick="switchChartTab('mvrvz', this)">MVRV Z-Score</button>
+        <button class="chart-tab" onclick="switchChartTab('ethreg', this)">ETH Regression Bands</button>
+        <button class="chart-tab" onclick="switchChartTab('ethcyc', this)">ETH Cycle Bands</button>
+        <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
+      </div>
+
+      <!-- ── Bitcoin Terminal Price ── -->
+      <div class="chart-sub" id="chartSub-terminal" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🎯 Bitcoin Terminal Price</span>
+            <span class="panel-badge">Daily · Log</span>
+          </div>
+          <div id="tp-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> BTC price (blue) against three on-chain value models.
+            <strong style="color:#4caf50;">Realized Price</strong> is the average price at which every coin last moved, i.e. the market's average cost basis.
+            <strong style="color:#ef5350;">Terminal Price</strong> is 21 × the Transferred Price (the dollar value of all coin-days destroyed since 2009, divided by supply × Bitcoin's age in days); it has marked every cycle top.
+            <strong style="color:#ff9f43;">Balanced Price</strong> is Realized minus Transferred Price and has marked the cycle bottoms.<br>
+            <strong style="color:var(--text);">How to read it:</strong> price near the red line = cycle-top territory, take profit; price at or under the orange line = generational buy zone;
+            price under the green line = most holders are at a loss (bear-market accumulation). Drag across the chart to zoom, double-click or right-click to reset, click a name to hide it.
+            Data: Coin Metrics (price, supply, MVRV → Realized Price) and BGeometrics (coin-days destroyed), refreshed every 12 hours. Daily coin-days data before Nov 2022 is not freely available, so Terminal and Balanced Price before that date are reconstructed: pinned to Into The Cryptoverse values on 24 Nov 2010, 3 Jul 2011, 6 Apr 2013, 19 Feb 2014 and 20 Nov 2017, and spread between them by price, supply and MVRV (about 3–5% accuracy). From Nov 2022 they are measured.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── MVRV Z-Score ── -->
+      <div class="chart-sub" id="chartSub-ethreg" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title" id="ethreg-title">📐 ETH Logarithmic Regression Bands</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="ethreg-root" class="ipo-root"></div>
+          <p id="ethreg-note" class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> Ethereum's long-term growth curve. Price is on a log scale and the bands rise more slowly each year, because ETH's growth slows as it matures. The bands are drawn two years ahead.<br>
+            <strong style="color:var(--text);">How to read it:</strong>
+            <strong style="color:#2ecc71;">green channel</strong> = ETH's long-term floor: price has spent most of 2017–2025 above it, and closed below it only in March 2020 and November 2026;
+            <strong style="color:#00c2ff;">blue band</strong> = the extreme low, drawn through the deepest drop in ETH's history (13 Mar 2020 wick, $88.20); price has never closed below it;
+            <strong style="color:#ef5350;">red band</strong> = the extreme high, drawn through the current cycle's top. Past tops reached higher bands each earlier cycle.
+            Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.
+          </p>
+          <div id="ethreg-explain" class="mvz-explain"></div>
+        </div>
+      </div>
+
+      <div class="chart-sub" id="chartSub-mvrvz" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🌡️ MVRV Z-Score</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="mvz-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> how far Bitcoin's market value has run above or below its realized value (the price every coin last moved at), measured in standard deviations. The formula and a worked example are below.<br>
+            <strong style="color:var(--text);">How to read it:</strong>
+            <strong style="color:#ef5350;">above 7</strong> = price far above holders' cost basis, the zone of the 2013, 2017 and early-2021 cycle tops;
+            <strong style="color:#26a69a;">below 0</strong> = market value under realized value, most holders at a loss, the zone of every cycle bottom (2015, 2018, 2020, 2022).
+            Each cycle has peaked lower (10.7 in Apr 2013, 10.1 in Dec 2017, 7.2 in Feb 2021, 3.7 in Oct 2021 and 3.4 in Dec 2024), so treat 3+ as overheated rather than waiting for 7.
+            The top pane is shaded where the Z-score sat in a zone, so you can see what price did there. Drag across the chart to zoom, double-click or right-click to reset.
+            Data: Coin Metrics (price, supply, MVRV), refreshed every 12 hours; values match BGeometrics' MVRV Z-Score.
+          </p>
+          <div id="mvz-explain" class="mvz-explain"></div>
+        </div>
+      </div>
+
+      <!-- ── BTC average mining cost (MARA) ── -->
+      <div class="chart-sub" id="chartSub-miningCost" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">💰 BTC: Avg. Mining Cost per BTC</span>
+            <span class="panel-badge">Daily price · Quarterly cost</span>
+          </div>
+          <div id="mc-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> BTC price (white) against what it costs MARA, the largest listed Bitcoin miner, to produce one bitcoin each quarter (purple):
+            energy, hosting, operating costs and equipment depreciation, divided by the bitcoin it mined. The dashed line is the latest reported quarter. The table lists every quarter: its cost, the change from the quarter before, the average BTC price in that quarter and how far price was above or below cost; the running quarter shows its average price so far.<br>
+            <strong style="color:var(--text);">How to read it:</strong> the cost of production acts as a floor. When price trades far above it, miners are very profitable and the market is usually extended.
+            When price falls to or under it, miners are near break-even or losing money, weaker miners sell or shut down, and historically that zone has been a strong long-term buy area.
+            The cost jumps after each halving (April 2024), because the reward per block is cut in half. Hover to see the price-vs-cost margin on any day; drag to zoom, double-click or right-click to reset.
+            Data: MARA's own quarterly (10-Q) and annual (10-K) reports to the SEC, the same source CryptoQuant uses: purchased energy + third-party hosting + operating and maintenance costs, divided by the bitcoin MARA produced; Q4 is the annual report minus the first three quarters. A new quarter is added automatically as soon as MARA files it, about 5–6 weeks after the quarter ends (Q4 in late February). BTC price from Coin Metrics, refreshed every 12 hours.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── BTC around mega IPOs ── -->
+      <div class="chart-sub" id="chartSub-ipo" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🚀 BTC Before Mega IPOs: SpaceX → Anthropic → OpenAI</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="ipo-root" class="ipo-root"></div>
+        </div>
+      </div>
+
+      <div class="chart-sub" id="chartSub-shutdown" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🏛️ BTC Before US Government Shutdowns</span>
+            <span class="panel-badge">Daily</span>
+          </div>
+          <div id="sd-root" class="ipo-root"></div>
+        </div>
       </div>
 
       <!-- ── Supply in Profit/Loss ── -->
@@ -2261,6 +2496,13 @@
             <div class="roi-chart-wrap" style="height:620px;"><canvas id="ytdCanvas"></canvas></div>
             <!-- Bottom legend with clickable years -->
             <div class="ytd-legend" id="ytdLegend"></div>
+            <p class="chart-note">
+              <strong style="color:var(--text);">What it shows:</strong> every year's return measured from its 1 January open, so all years start at 0% on the same day.
+              <strong style="color:var(--text);">Add Average</strong> draws the average path of the years you pick (for example the midterm years of the US presidential cycle);
+              <strong style="color:var(--text);">Standard Deviation</strong> adds a band of ± N·σ around it, the range those years normally stayed within.<br>
+              <strong style="color:var(--text);">How to read it:</strong> compare the current year with the average of its cycle bucket. Running far above the band = stretched, below = lagging the typical path.
+              Click a year to hide or show it, switch Linear/Logarithmic for big moves, and drag across the chart to zoom.
+            </p>
           </div>
         </div>
       </div>
@@ -2297,6 +2539,12 @@
               <div class="roi-chart-wrap" style="height:420px;"><canvas id="fngCanvas"></canvas></div>
             </div>
           </div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> the daily Crypto Fear &amp; Greed Index (0–100) from alternative.me, built from volatility, momentum, volume, social media and BTC dominance.
+            0–24 = extreme fear, 25–49 = fear, 50 = neutral, 51–74 = greed, 75–100 = extreme greed.<br>
+            <strong style="color:var(--text);">How to read it:</strong> it is a contrarian gauge. Extreme fear has lined up with local bottoms and extreme greed with local tops,
+            but it can stay extreme for weeks, so use it as one confluence, not an entry on its own. Pick a range with the buttons or the dates.
+          </p>
         </div>
       </div>
     </div>
@@ -2472,18 +2720,26 @@
         <div>
           <div class="panel" style="margin-bottom:20px;">
             <div class="panel-header">
-              <span class="panel-title">💳 Subscription</span>
+              <span class="panel-title">💳 Access &amp; Subscription</span>
             </div>
             <div class="panel-body">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border2);">
                 <div>
-                  <div style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);">Legion Membership</div>
-                  <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">€79.00 / month</div>
+                  <div id="acc-plan" style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);">Legion Membership</div>
+                  <div id="acc-price" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
                 </div>
                 <div id="acc-status" style="background:rgba(38,166,91,0.15);color:var(--green);font-size:11px;padding:4px 12px;letter-spacing:0.1em;">ACTIVE</div>
               </div>
-              <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Next billing: <span id="acc-renew" style="color:var(--text);">—</span></div>
-              <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Billing managed securely by <span style="color:var(--text);">Stripe</span></div>
+              <div id="acc-rights" style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin-bottom:16px;"></div>
+              <div id="acc-billing">
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Next billing: <span id="acc-renew" style="color:var(--text);">—</span></div>
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Billing managed securely by <span style="color:var(--text);">Stripe</span></div>
+              </div>
+              <form id="acc-redeem" style="display:flex;gap:8px;margin-bottom:16px;" onsubmit="return false;">
+                <input id="acc-code" autocomplete="off" spellcheck="false" placeholder="Access code" style="flex:1;min-width:0;background:var(--dark3);border:1px solid var(--border);color:var(--text);padding:9px 12px;font:600 12.5px ui-monospace,Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;">
+                <button id="acc-code-btn" style="background:none;border:1px solid var(--gold);color:var(--gold);padding:9px 16px;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;">Redeem</button>
+              </form>
+              <div id="acc-code-msg" style="font-size:12.5px;margin:-8px 0 14px;display:none;"></div>
               <button id="acc-manage" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 20px;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;width:100%;transition:all 0.2s;margin-bottom:10px;">Manage / Update Card</button>
               <button id="acc-cancel" style="background:none;border:1px solid rgba(231,76,60,0.4);color:var(--red);padding:10px 20px;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;width:100%;transition:all 0.2s;" onmouseover="this.style.background='rgba(231,76,60,0.1)'" onmouseout="this.style.background='none'">Cancel Subscription</button>
             </div>
@@ -2693,7 +2949,7 @@
   // Init overview chart on load + render risk charts (default section)
   window.addEventListener('load', () => {
     setTimeout(() => {
-      initOverviewChart();
+      if (window.LegionKeyDates) LegionKeyDates.init();
     }, 300);
     setTimeout(() => { if (window.LegionCharts) window.LegionCharts.render(); }, 400);
   });
@@ -2718,8 +2974,8 @@
   async function fetchCryptoPrices() {
     try {
       var [btcR, ethR] = await Promise.all([
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT'),
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT')
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT', { referrerPolicy: 'no-referrer' }),
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT', { referrerPolicy: 'no-referrer' })
       ]);
       var btc = await btcR.json(), eth = await ethR.json();
       var btcP = parseFloat(btc.lastPrice), btcC = parseFloat(btc.priceChangePercent);
@@ -2864,6 +3120,16 @@
 <script src="data-risk.js?v=20260914b"></script>
 <script src="data-roi.js?v=20260914b"></script>
 <script src="data-fng.js?v=20260914b"></script>
+<script src="ipo-chart.js?v=4"></script>
+<script src="shutdown-chart.js?v=5"></script>
+<script src="onchain-terminal.js?v=20261113"></script>
+<script src="terminal-chart.js?v=2"></script>
+<script src="mvrvz-chart.js?v=4"></script>
+<script src="eth-regression-chart.js?v=3"></script>
+<script src="mining-cost.js?v=20261112"></script>
+<script src="mining-cost-chart.js?v=5"></script>
+<script src="youtube.js?v=7"></script>
+<script src="flash.js?v=1"></script>
 <script>
 /* ════════ IVth Legion — Risk & Cycles canvas charts (zero deps) ════════ */
 (function(){
@@ -2891,13 +3157,15 @@
   }
 
   /* ── RISK / EUPHORIA ── */
+  let riskZoom=null, roiZoom=null; // [from, to] while zoomed in: fractional years / day of year
   function drawRisk(){
     const cv=document.getElementById('riskCanvas'); if(!cv||!window.LEGION_RISK) return;
     const D=window.LEGION_RISK, X=D.x, P=D.p, R=D.r;
     const {ctx,w,h}=setup(cv);
     const pad={l:52,r:14,t:14,b:26}, plotW=w-pad.l-pad.r, plotH=h-pad.t-pad.b;
-    const xmin=X[0], xmax=X[X.length-1];
-    let pmin=Infinity,pmax=-Infinity; for(const v of P){ if(v<pmin)pmin=v; if(v>pmax)pmax=v; }
+    const xmin=riskZoom?riskZoom[0]:X[0], xmax=riskZoom?riskZoom[1]:X[X.length-1];
+    let pmin=Infinity,pmax=-Infinity; for(let i=0;i<P.length;i++){ if(X[i]<xmin||X[i]>xmax) continue; const v=P[i]; if(v<pmin)pmin=v; if(v>pmax)pmax=v; }
+    if(pmin===Infinity){ pmin=P[0]; pmax=P[P.length-1]; }
     const loE=Math.floor(Math.log10(pmin)), hiE=Math.ceil(Math.log10(pmax));
     const mapX=x=>pad.l+(x-xmin)/(xmax-xmin)*plotW;
     const mapY=lp=>pad.t+(hiE-lp)/(hiE-loE)*plotH;
@@ -2908,16 +3176,22 @@
       ctx.fillStyle='#666688'; ctx.fillText(fmtPrice(Math.pow(10,e)), pad.l-8, y);
     }
     ctx.textAlign='center'; ctx.textBaseline='top';
-    for(let yr=Math.ceil(xmin);yr<=Math.floor(xmax);yr++){ const x=mapX(yr);
+    const tStep=(xmax-xmin)>4?1:(xmax-xmin)>1.5?0.25:1/12; // years, quarters or months when zoomed in
+    for(let t=Math.ceil(xmin/tStep)*tStep;t<=xmax+1e-9;t+=tStep){ const x=mapX(t);
       ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,h-pad.b); ctx.stroke();
-      ctx.fillStyle='#666688'; ctx.fillText(String(yr), x, h-pad.b+6);
+      const yr=Math.floor(t+1e-9), mo=Math.round((t-yr)*12);
+      ctx.fillStyle='#666688'; ctx.fillText(tStep===1||mo===0?String(yr):['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]+" '"+String(yr).slice(2), x, h-pad.b+6);
     }
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l,pad.t,plotW,plotH); ctx.clip();
     for(let i=0;i<X.length;i++){
+      if(X[i]<xmin||X[i]>xmax) continue;
       const b=Math.min(9,Math.max(0,Math.floor(R[i]*10)));
       ctx.fillStyle=RISK_COLORS[b];
       const x=mapX(X[i]), y=mapY(Math.log10(P[i]));
       ctx.fillRect(x-0.8,y-0.8,1.9,1.9);
     }
+    ctx.restore();
+    if(riskZoom){ ctx.fillStyle='#e8c96a'; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.font='600 10px Inter, sans-serif'; ctx.fillText('Zoomed: right-click to reset', w-pad.r-4, pad.t+4); }
     const badge=document.getElementById('riskBadge'); if(badge) badge.textContent='Risk '+D.latest.risk.toFixed(3);
   }
   function buildRiskLegend(){
@@ -2959,18 +3233,19 @@
     let curDoy=-1; if(curArr) for(let d=0;d<366;d++) if(curArr[d]!=null) curDoy=d;
     const yearsToLine = (key==='none') ? Object.keys(R.years).map(Number) : mem;
 
-    const ys=[]; const push=a=>{ if(!a)return; for(let d=0;d<366;d++) if(a[d]!=null) ys.push(a[d]); };
+    const dMin=roiZoom?roiZoom[0]:0, dMax=roiZoom?roiZoom[1]:365;
+    const ys=[]; const push=a=>{ if(!a)return; for(let d=dMin;d<=dMax;d++) if(a[d]!=null) ys.push(a[d]); };
     if(showYears) yearsToLine.forEach(y=>push(R.years[String(y)]));
-    if(hasAvg) for(let d=0;d<366;d++) if(st.mean[d]!=null){ ys.push(st.mean[d]+sdMul*(st.sd[d]||0)); ys.push(st.mean[d]-sdMul*(st.sd[d]||0)); }
+    if(hasAvg) for(let d=dMin;d<=dMax;d++) if(st.mean[d]!=null){ ys.push(st.mean[d]+sdMul*(st.sd[d]||0)); ys.push(st.mean[d]-sdMul*(st.sd[d]||0)); }
     if(showCur) push(curArr);
-    ys.push(1);
+    if(!roiZoom) ys.push(1);
     let yMin=Math.min(...ys), yMax=Math.max(...ys);
     if(yMin===yMax){ yMin-=0.1; yMax+=0.1; }
     const p=(yMax-yMin)*0.06; yMin-=p; yMax+=p;
 
     const {ctx,w,h}=setup(cv);
     const pad={l:52,r:16,t:14,b:26}, plotW=w-pad.l-pad.r, plotH=h-pad.t-pad.b;
-    const mapX=d=>pad.l+(d/365)*plotW;
+    const mapX=d=>pad.l+((d-dMin)/(dMax-dMin))*plotW;
     const mapY=v=>pad.t+(yMax-v)/(yMax-yMin)*plotH;
 
     ctx.font='10px Inter, sans-serif'; ctx.textBaseline='middle'; ctx.textAlign='right';
@@ -2980,10 +3255,13 @@
       ctx.fillStyle='#666688'; ctx.fillText(fmtPct(t), pad.l-8, y);
     }
     ctx.textAlign='center'; ctx.textBaseline='top';
-    MONTH_DOY.forEach((d,i)=>{ const x=mapX(d);
+    MONTH_DOY.forEach((d,i)=>{ if(d<dMin||d>dMax) return; const x=mapX(d);
       ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,h-pad.b); ctx.stroke();
       ctx.fillStyle='#666688'; ctx.fillText(MONTHS[i], x, h-pad.b+6);
     });
+    if(dMax-dMin<=62){ for(let d=Math.ceil(dMin/7)*7; d<=dMax; d+=7){ if(MONTH_DOY.includes(d)) continue; const dt=new Date(Date.UTC(2024,0,1+d));
+      ctx.fillStyle='#4a4d66'; ctx.fillText(dt.getUTCDate()+' '+MONTHS[dt.getUTCMonth()], mapX(d), h-pad.b+6); } }
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l,pad.t-2,plotW,plotH+4); ctx.clip();
 
     if(hasAvg && sdMul>0){
       ctx.beginPath(); let started=false;
@@ -2997,6 +3275,8 @@
     if(hasAvg) line(st.mean,'#c9a84c',2.2);
     if(showCur&&curArr){ line(curArr,'#35d0e0',2.4,curDoy);
       if(curDoy>=0){ const x=mapX(curDoy),y=mapY(curArr[curDoy]); ctx.fillStyle='#35d0e0'; ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fill(); } }
+    ctx.restore();
+    if(roiZoom){ ctx.fillStyle='#e8c96a'; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.font='600 10px Inter, sans-serif'; ctx.fillText('Zoomed: right-click to reset', w-pad.r-4, pad.t+4); }
 
     const ro=document.getElementById('roiReadout');
     if(ro){ let s=''; if(showCur&&curDoy>=0){ s=`${curKey} YTD <strong>${curArr[curDoy].toFixed(3)}</strong>`; if(hasAvg&&st.mean[curDoy]!=null) s+=` · cycle avg ${st.mean[curDoy].toFixed(3)}`; } ro.innerHTML=s; }
@@ -3022,7 +3302,10 @@
   });
   let rt; window.addEventListener('resize', ()=>{ clearTimeout(rt); rt=setTimeout(()=>{ const s=document.getElementById('sec-cycles'); if(s&&s.classList.contains('active')) render(); },150); });
 
-  window.LegionCharts = { render, drawRisk, drawROI };
+  window.LegionCharts = { render, drawRisk, drawROI,
+    riskView(){ const X=window.LEGION_RISK.x; return riskZoom||[X[0],X[X.length-1]]; },
+    roiView(){ return roiZoom||[0,365]; },
+    zoomRisk(z){ riskZoom=z; drawRisk(); }, zoomROI(z){ roiZoom=z; drawROI(); } };
 })();
 
 /* ════════ Charts Section — Supply P/L + Enhanced YTD ROI ════════ */
@@ -3033,11 +3316,17 @@
     document.querySelectorAll('#chartMainTabs .chart-tab').forEach(function(t){ t.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     document.querySelectorAll('.chart-sub').forEach(function(s){ s.style.display = 'none'; });
-    var el = document.getElementById('chartSub-' + tab);
+    var el = document.getElementById('chartSub-' + (tab === 'ethcyc' ? 'ethreg' : tab)); // both ETH models share one panel
     if (el) el.style.display = '';
     if (tab === 'supplyPL') drawSupplyPL();
     if (tab === 'ytdROI') drawYtdROI();
     if (tab === 'fng') drawFNG();
+    if (tab === 'ipo' && window.LegionIPO) window.LegionIPO.draw();
+    if (tab === 'shutdown' && window.LegionShutdown) window.LegionShutdown.draw();
+    if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
+    if (tab === 'mvrvz' && window.LegionMVRVZ) window.LegionMVRVZ.draw();
+    if ((tab === 'ethreg' || tab === 'ethcyc') && window.LegionETHReg) window.LegionETHReg.draw(tab === 'ethcyc' ? 'cyc' : 'ext');
+    if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
   };
 
   /* ── SUPPLY IN PROFIT / LOSS ── */
@@ -4539,9 +4828,10 @@
       var w = rect.width, h = rect.height;
       var pad = {l:52, r:14, t:14, b:26}, plotW = w - pad.l - pad.r;
       if (mx < pad.l || mx > w - pad.r) { rTip.style.display = 'none'; rLine.style.display = 'none'; return; }
-      var xFrac = (mx - pad.l) / plotW;
-      var idx = Math.round(xFrac * (D.x.length - 1));
-      idx = Math.max(0, Math.min(D.x.length - 1, idx));
+      var view = window.LegionCharts.riskView(), xv = view[0] + (mx - pad.l) / plotW * (view[1] - view[0]);
+      var lo = 0, hi = D.x.length - 1;
+      while (lo < hi) { var mid = (lo + hi) >> 1; if (D.x[mid] < xv) lo = mid + 1; else hi = mid; }
+      var idx = lo;
       var yr = D.x[idx], price = D.p[idx], risk = D.r[idx];
       var RISK_COLORS = ['#3b1e8f','#2f52d8','#2e8fe0','#28c3c9','#5fd97a','#b4e04a','#f1c40f','#f39c12','#e8552b','#d81f2b'];
       var b = Math.min(9, Math.max(0, Math.floor(risk * 10)));
@@ -4557,6 +4847,13 @@
       rLine.style.display = ''; rLine.style.left = mx + 'px'; rLine.style.height = h + 'px';
     });
     cv.addEventListener('mouseleave', function(){ if (rTip) rTip.style.display = 'none'; if (rLine) rLine.style.display = 'none'; });
+    if (window.LegionZoom) LegionZoom.attach(cv, {
+      plot: function(){ return { l: 52, r: cv.clientWidth - 14 }; },
+      onZoom: function(a, b){ var v = window.LegionCharts.riskView(), pw = cv.clientWidth - 66, f = function(x){ return v[0] + (x - 52) / pw * (v[1] - v[0]); };
+        var z0 = f(a), z1 = f(b); if (z1 - z0 < 0.1) { var m = (z0 + z1) / 2; z0 = m - 0.05; z1 = m + 0.05; }
+        window.LegionCharts.zoomRisk([z0, z1]); },
+      onReset: function(){ window.LegionCharts.zoomRisk(null); }
+    });
   });
 
   /* ROI chart hover */
@@ -4578,7 +4875,8 @@
       var w = rect.width;
       var pad = {l:52, r:16, t:14, b:26}, plotW = w - pad.l - pad.r;
       if (mx < pad.l || mx > w - pad.r) { oTip.style.display = 'none'; oLine.style.display = 'none'; return; }
-      var doy = Math.round((mx - pad.l) / plotW * 365);
+      var rv = window.LegionCharts.roiView();
+      var doy = Math.round(rv[0] + (mx - pad.l) / plotW * (rv[1] - rv[0]));
       doy = Math.max(0, Math.min(365, doy));
       var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       var approx = new Date(Date.UTC(2024, 0, 1 + doy));
@@ -4607,6 +4905,13 @@
       oLine.style.display = ''; oLine.style.left = mx + 'px'; oLine.style.height = rect.height + 'px';
     });
     cv.addEventListener('mouseleave', function(){ if (oTip) oTip.style.display = 'none'; if (oLine) oLine.style.display = 'none'; });
+    if (window.LegionZoom) LegionZoom.attach(cv, {
+      plot: function(){ return { l: 52, r: cv.clientWidth - 16 }; },
+      onZoom: function(a, b){ var v = window.LegionCharts.roiView(), pw = cv.clientWidth - 68, f = function(x){ return v[0] + (x - 52) / pw * (v[1] - v[0]); };
+        var z0 = Math.floor(f(a)), z1 = Math.ceil(f(b)); if (z1 - z0 < 7) { var m = Math.round((z0 + z1) / 2); z0 = Math.max(0, m - 3); z1 = Math.min(365, m + 4); }
+        window.LegionCharts.zoomROI([Math.max(0, z0), Math.min(365, z1)]); },
+      onReset: function(){ window.LegionCharts.zoomROI(null); }
+    });
   });
 
   /* YTD ROI V2 hover */
@@ -4689,6 +4994,16 @@
     reloadDataScript('data-fng.js', function(){
       if (window.LegionChartsV2) window.LegionChartsV2.drawFNG();
     });
+    reloadDataScript('onchain-terminal.js', function(){
+      var r = document.getElementById('tp-root');
+      if (r) { r.removeAttribute('data-ready'); if (r.offsetParent && window.LegionTerminal) window.LegionTerminal.draw(); }
+      var mz = document.getElementById('mvz-root');
+      if (mz) { mz.removeAttribute('data-ready'); if (mz.offsetParent && window.LegionMVRVZ) window.LegionMVRVZ.draw(); }
+    });
+    reloadDataScript('mining-cost.js', function(){
+      var mc = document.getElementById('mc-root');
+      if (mc && window.LegionMiningCost) { window.LegionMiningCost.reset(); if (mc.offsetParent) window.LegionMiningCost.draw(); }
+    });
     console.log('[auto-refresh] Chart data reloaded at', new Date().toLocaleTimeString());
   }
   setInterval(refreshAll, REFRESH_MS);
@@ -4719,12 +5034,39 @@
     setV('acc-email', user.email || '');
     setV('acc-tg', user.telegram_username ? '@' + user.telegram_username : '');
 
-    // Telegram invite links
-    const invite = user.invite_link;
-    document.querySelectorAll('a[href="https://t.me/ivthlegion"]').forEach(a => {
-      if (invite) a.href = invite;
-      a.target = '_blank'; a.rel = 'noopener';
-    });
+    // Telegram invite links: the member's personal single-use link, created by the server when missing or expired
+    const tgLinks = [...document.querySelectorAll('a[href="https://t.me/ivthlegion"]')];
+    const setTg = link => tgLinks.forEach(a => { if (link) a.href = link; a.target = '_blank'; a.rel = 'noopener'; });
+    setTg(user.invite_link);
+    if ((user.access || {}).telegram > Date.now() / 1000) {
+      fetch('/api/telegram/invite').then(r => (r.ok ? r.json() : null)).then(d => {
+        if (!d || !d.link) return;
+        setTg(d.link);
+        const note = document.querySelector('#sec-telegram .tg-note');
+        if (note && d.personal && d.expires) note.textContent = 'This is your personal invite link: it works once, for you only, until ' + new Date(d.expires * 1000).toLocaleString() + '. Do not share it. Open this page again for a new one.';
+      }).catch(() => { /* keep the fallback link */ });
+    }
+
+    // Access: which rights this account has and until when
+    const A = user.access || {}, nowS = Date.now() / 1000;
+    if (!(A.education > nowS)) { const ne = document.getElementById('nav-education'); if (ne) ne.style.display = 'none'; }
+    const label = (user.plans || []).map(p => p.label).filter((v, i, a) => a.indexOf(v) === i);
+    const planEl = document.getElementById('acc-plan'); if (planEl) planEl.textContent = label.length ? label.map(l => l === 'stripe' ? (user.stripe_addon ? 'Telegram + Website' : 'Telegram') : l === 'manual' ? 'Legion Membership' : l === 'admin' ? 'Owner' : l).join(' · ') : 'No active plan';
+    const priceEl = document.getElementById('acc-price'); if (priceEl) priceEl.textContent = user.has_subscription ? (user.stripe_addon ? '€189 / month (€89 + €100 website add-on)' : '€89 / month') : '';
+    const rightsEl = document.getElementById('acc-rights');
+    if (rightsEl) rightsEl.innerHTML = [['Telegram', A.telegram], ['Website', A.website], ['Academy', A.education]].map(([n, u]) =>
+      '<span style="color:var(--text-muted)">' + n + '</span><span style="color:' + (u > nowS ? 'var(--green)' : 'var(--text-muted)') + '">' +
+      (u > nowS ? (u > 4e9 ? 'included' : 'until ' + fmtDate(u)) : 'not included') + '</span>').join('');
+    if (!user.has_subscription) { const b = document.getElementById('acc-billing'); if (b) b.style.display = 'none'; ['acc-manage','acc-cancel'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; }); }
+    const codeBtn = document.getElementById('acc-code-btn');
+    if (codeBtn) codeBtn.onclick = async () => {
+      const inp = document.getElementById('acc-code'), msg = document.getElementById('acc-code-msg');
+      if (!inp.value.trim()) return;
+      codeBtn.disabled = true;
+      try { const r = await Legion.redeem(inp.value.trim()); msg.style.color = 'var(--green)'; msg.textContent = r.label + ' code accepted: access until ' + fmtDate(r.ends_at) + '. Reloading…'; setTimeout(() => location.reload(), 1300); }
+      catch (e) { msg.style.color = 'var(--red)'; msg.textContent = e.message; codeBtn.disabled = false; }
+      msg.style.display = 'block';
+    };
 
     // Billing state
     const status = user.subscription_status;
