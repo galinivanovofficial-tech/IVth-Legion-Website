@@ -75,6 +75,7 @@ export const config = {
 
   // First admin account (optional) — this email becomes role=admin on register/login.
   adminEmail: (env.ADMIN_EMAIL || '').toLowerCase(),
+  hbToken: env.HB_TOKEN || '',            // shared secret for /api/hb and /api/events (machine-to-machine)
 
   seedTestUser: bool(env.SEED_TEST_USER, false),
 };
