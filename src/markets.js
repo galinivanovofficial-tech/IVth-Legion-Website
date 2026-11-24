@@ -481,6 +481,53 @@ async function getEthDaily() {
   });
 }
 
+// ---------- BTC halving progress: daily [date, high, low, close] since 2012 + live block height ----------
+// Halving dates are fixed history; the next one is estimated from the live height and the recent block time.
+const HALVINGS = [
+  { n: 1, height: 210000, date: '2012-11-28' },
+  { n: 2, height: 420000, date: '2016-07-09' },
+  { n: 3, height: 630000, date: '2020-05-11' },
+  { n: 4, height: 840000, date: '2024-04-20' },
+];
+async function getBtcOhlcSince2012() {
+  return cached('btc:ohlc2012', 6 * 3600, async () => {
+    const out = [];
+    let start = Math.floor(Date.UTC(2012, 0, 1) / 1000);
+    const end = Math.floor(Date.now() / 1000);
+    while (start < end) {
+      const d = await fetchJSON(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit=1000&start=${start}`);
+      const bars = d?.data?.ohlc || [];
+      if (!bars.length) break;
+      for (const b of bars) {
+        const ts = Number(b.timestamp), h = parseFloat(b.high), l = parseFloat(b.low), c = parseFloat(b.close);
+        if (ts && c > 0) out.push([new Date(ts * 1000).toISOString().slice(0, 10), h, l, c]);
+      }
+      start = Number(bars[bars.length - 1].timestamp) + 86400;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    if (out.length < 5000) throw new Error('BTC history incomplete (' + out.length + ' days)');
+    const seen = new Set();
+    return out.filter(([d]) => !seen.has(d) && seen.add(d));
+  });
+}
+async function getChainTip() {
+  return cached('btc:tip', 600, async () => {
+    const [height, adj] = await Promise.all([
+      fetchJSON('https://mempool.space/api/blocks/tip/height'),
+      fetchJSON('https://mempool.space/api/v1/difficulty-adjustment'),
+    ]);
+    const h = Number(height), avg = Number(adj?.timeAvg) / 1000 || 600;   // seconds per block, recent average
+    if (!(h > 840000)) throw new Error('bad block height');
+    const next = (Math.floor(h / 210000) + 1) * 210000;
+    return { height: h, avgBlockSec: Math.round(avg), nextHalvingHeight: next,
+             nextHalvingEst: new Date(Date.now() + (next - h) * avg * 1000).toISOString().slice(0, 10), at: new Date().toISOString() };
+  });
+}
+async function getHalvingProgress() {
+  const [days, tip] = await Promise.all([getBtcOhlcSince2012(), getChainTip()]);
+  return { days, tip, halvings: HALVINGS };
+}
+
 // ---------- YouTube: latest uploads of the Galin IVNV channel (public RSS feed, no API key, 15 newest) ----------
 const YT_CHANNEL = { id: 'UCsnbRriY3NlDJiYylQOP6zw', handle: '@galin_ivnv', name: 'Galin IVNV' };
 async function getYouTube() {
@@ -509,6 +556,10 @@ export function registerMarketRoutes(router) {
   router.get('/api/markets/btc-daily', async (req, res) => {
     try { res.json(200, { days: await getBtcDaily() }); }
     catch (e) { console.error('[markets] btc-daily:', e.message); res.json(502, { error: 'BTC history unavailable' }); }
+  });
+  router.get('/api/markets/btc-halving', async (req, res) => {
+    try { res.json(200, await getHalvingProgress()); }
+    catch (e) { console.error('[markets] btc-halving:', e.message); res.json(502, { error: 'BTC halving data unavailable' }); }
   });
   router.get('/api/markets/eth-daily', async (req, res) => {
     try { res.json(200, { days: await getEthDaily() }); }

@@ -2293,6 +2293,7 @@ div.ipo-note p{margin:0 0 8px}
         <button class="chart-tab" onclick="switchChartTab('mvrvz', this)">MVRV Z-Score</button>
         <button class="chart-tab" onclick="switchChartTab('ethreg', this)">ETH Regression Bands</button>
         <button class="chart-tab" onclick="switchChartTab('ethcyc', this)">ETH Cycle Bands</button>
+        <button class="chart-tab" onclick="switchChartTab('halving', this)">Halving Progress</button>
         <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
       </div>
 
@@ -2333,6 +2334,20 @@ div.ipo-note p{margin:0 0 8px}
             Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.
           </p>
           <div id="ethreg-explain" class="mvz-explain"></div>
+        </div>
+      </div>
+      <div class="chart-sub" id="chartSub-halving" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">⛏️ BTC Halving Progress</span>
+            <span class="panel-badge">Live</span>
+          </div>
+          <div id="halving-root" class="ipo-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> how far Bitcoin is through the current 4-year halving epoch (from the live block height), and where every past cycle was at the same point. Each orange band covers that same share of its epoch, measured from its halving.<br>
+            <strong style="color:var(--text);">How to read it:</strong> white dots are days that set a new all-time high; nearly all of them printed inside a band, early in the epoch. The table compares today with each past cycle at the same point. Drag to zoom, double-click to reset. A model of past cycles, not a forecast.
+          </p>
+          <div id="halving-explain" class="mvz-explain"></div>
         </div>
       </div>
 
@@ -3126,6 +3141,7 @@ div.ipo-note p{margin:0 0 8px}
 <script src="terminal-chart.js?v=2"></script>
 <script src="mvrvz-chart.js?v=4"></script>
 <script src="eth-regression-chart.js?v=3"></script>
+<script src="halving-chart.js?v=1"></script>
 <script src="mining-cost.js?v=20261112"></script>
 <script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>
@@ -3325,6 +3341,7 @@ div.ipo-note p{margin:0 0 8px}
     if (tab === 'shutdown' && window.LegionShutdown) window.LegionShutdown.draw();
     if (tab === 'terminal' && window.LegionTerminal) window.LegionTerminal.draw();
     if (tab === 'mvrvz' && window.LegionMVRVZ) window.LegionMVRVZ.draw();
+    if (tab === 'halving' && window.LegionHalving) window.LegionHalving.draw();
     if ((tab === 'ethreg' || tab === 'ethcyc') && window.LegionETHReg) window.LegionETHReg.draw(tab === 'ethcyc' ? 'cyc' : 'ext');
     if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
   };
