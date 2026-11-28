@@ -1,3 +1,4 @@
+import { readFile, writeFile } from 'node:fs/promises';
 // Market data proxies (zero dependency): Fear & Greed, earnings calendar, economic calendar.
 // All endpoints are public + cached in memory so external APIs are hit rarely.
 
@@ -562,7 +563,7 @@ const US_STATES = [['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arka
 const REC_START = '1977-01';
 
 async function fetchFredCsv(ids) {
-  const res = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + ids.join(','), { headers: { 'User-Agent': UA } });
+  const res = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + ids.join(','), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`FRED ${ids[0]}.. -> HTTP ${res.status}`);
   const rows = (await res.text()).trim().split('\n').map(l => l.split(','));
   const head = rows.shift().slice(1);
@@ -576,12 +577,25 @@ async function fetchFredCsv(ids) {
   return out;
 }
 
-async function getStateRecession() {
-  return cached('state-recession', 6 * 3600, async () => {
+async function fetchFredApi(id) {
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${encodeURIComponent(process.env.FRED_API_KEY)}&file_type=json&observation_start=${REC_START}-01`;
+  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
+  if (!res.ok) throw new Error(`FRED API ${id} -> HTTP ${res.status}`);
+  const out = {};
+  for (const o of (await res.json()).observations || []) { const v = parseFloat(o.value); if (Number.isFinite(v)) out[o.date.slice(0, 7)] = v; }
+  return { [id]: out };
+}
+
+async function fetchStateRecessionLive() {
+  {
     const ids = [...US_STATES.flatMap(([s]) => [s + 'UR', s + 'PHCI']), 'UNRATE', 'SAHMREALTIME', 'USREC'];
     const chunks = [];
     for (let i = 0; i < ids.length; i += 12) chunks.push(ids.slice(i, i + 12)); // fredgraph returns at most 12 series
-    const parts = await Promise.all(chunks.map(fetchFredCsv));
+    let parts;
+    if (process.env.FRED_API_KEY) { // official API: reliable from cloud servers (the CSV endpoint can stall there)
+      parts = [];
+      for (let i = 0; i < ids.length; i += 5) parts.push(...await Promise.all(ids.slice(i, i + 5).map(fetchFredApi)));
+    } else parts = await Promise.all(chunks.map(fetchFredCsv));
     const S = Object.assign({}, ...parts);
     const last = Object.keys(S.UNRATE).sort().pop();
     const months = [];
@@ -598,7 +612,28 @@ async function getStateRecession() {
       states[s] = { name, ur: col(s + 'UR', 1), ci: col(s + 'PHCI', 2) };
     }
     return { months, states, us: { ur: col('UNRATE', 1), sahm: col('SAHMREALTIME', 2), usrec: col('USREC', 0) }, updated: new Date().toISOString() };
-  });
+  }
+}
+
+// FRED can stall from cloud servers, so the map is served from a bundled snapshot (src/state-recession-seed.json,
+// refresh with: node src/markets.js --recession-seed) and swapped for live data in the background when FRED answers.
+const REC_SEED = new URL('./state-recession-seed.json', import.meta.url);
+const rec = { data: null, liveAt: 0, tryAt: 0, busy: false };
+function refreshStateRecession() {
+  if (rec.busy || Date.now() - rec.tryAt < 3600e3) return;
+  rec.busy = true; rec.tryAt = Date.now();
+  fetchStateRecessionLive()
+    .then(d => { rec.data = d; rec.liveAt = Date.now(); })
+    .catch(e => console.error('[markets] state-recession live:', e.message))
+    .finally(() => { rec.busy = false; });
+}
+async function getStateRecession() {
+  if (!rec.data) {
+    try { rec.data = JSON.parse(await readFile(REC_SEED, 'utf8')); } catch (e) { console.error('[markets] state-recession seed:', e.message); }
+  }
+  if (Date.now() - rec.liveAt > 6 * 3600e3) refreshStateRecession();
+  if (!rec.data) throw new Error('no data yet');
+  return rec.data;
 }
 
 export function registerMarketRoutes(router) {
@@ -687,4 +722,9 @@ export function registerMarketRoutes(router) {
     }));
     res.json(200, { assets: list });
   });
+}
+
+// node src/markets.js --recession-seed  -> rewrite the bundled state recession snapshot from FRED
+if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()) && process.argv.includes('--recession-seed')) {
+  fetchStateRecessionLive().then(d => writeFile(REC_SEED, JSON.stringify(d))).then(() => console.log('state-recession seed written')).catch(e => { console.error(e); process.exit(1); });
 }
