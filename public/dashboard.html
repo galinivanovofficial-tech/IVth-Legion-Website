@@ -2295,6 +2295,7 @@ div.ipo-note p{margin:0 0 8px}
         <button class="chart-tab" onclick="switchChartTab('ethcyc', this)">ETH Cycle Bands</button>
         <button class="chart-tab" onclick="switchChartTab('halving', this)">Halving Progress</button>
         <button class="chart-tab" onclick="switchChartTab('miningCost', this)">Mining Cost</button>
+        <button class="chart-tab" onclick="switchChartTab('recession', this)">US Recession Map</button>
       </div>
 
       <!-- ── Bitcoin Terminal Price ── -->
@@ -2334,6 +2335,19 @@ div.ipo-note p{margin:0 0 8px}
             Drag to zoom, double-click to reset. A model of past behaviour, not a forecast.
           </p>
           <div id="ethreg-explain" class="mvz-explain"></div>
+        </div>
+      </div>
+      <div class="chart-sub" id="chartSub-recession" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🇺🇸 US Recession Map</span>
+            <span class="panel-badge">Monthly</span>
+          </div>
+          <div id="recession-root"></div>
+          <p class="chart-note" style="margin:4px 16px 16px;">
+            <strong style="color:var(--text);">What it shows:</strong> every US state each month, from two signals: the <em>Sahm gap</em> (3-month average unemployment vs its lowest 3-month average of the past year) and the Philadelphia Fed <em>coincident index</em> (jobs, hours, unemployment and wages) over 3 months. <span style="color:#d9452b">In recession</span>: Sahm gap ≥ 0.5 and the index falling, or the index down 1%+ in 3 months. <span style="color:#f0a030">On the verge</span>: one of the two signals fired, or the Sahm gap ≥ 0.3 with weak growth. This separates a local slump (an oil state in a price collapse) from a national recession.<br>
+            <strong style="color:var(--text);">US status:</strong> in recession during an NBER-dated recession, when the national Sahm rule is triggered with 15+ states in recession, or when 25+ states are in recession; on the verge when the national Sahm rule is 0.3+, 8+ states are in recession, or half the states are in recession or on the verge. Drag the timeline, use ◀ ▶ (or the arrow keys), Play, or the year buttons to go back in time; click a state for its detail. State data comes out monthly with a lag of about 6–8 weeks.
+          </p>
         </div>
       </div>
       <div class="chart-sub" id="chartSub-halving" style="display:none;">
@@ -3142,6 +3156,7 @@ div.ipo-note p{margin:0 0 8px}
 <script src="mvrvz-chart.js?v=4"></script>
 <script src="eth-regression-chart.js?v=3"></script>
 <script src="halving-chart.js?v=1"></script>
+<script src="recession-map.js?v=1"></script>
 <script src="mining-cost.js?v=20261112"></script>
 <script src="mining-cost-chart.js?v=5"></script>
 <script src="youtube.js?v=7"></script>
@@ -3344,6 +3359,7 @@ div.ipo-note p{margin:0 0 8px}
     if (tab === 'halving' && window.LegionHalving) window.LegionHalving.draw();
     if ((tab === 'ethreg' || tab === 'ethcyc') && window.LegionETHReg) window.LegionETHReg.draw(tab === 'ethcyc' ? 'cyc' : 'ext');
     if (tab === 'miningCost' && window.LegionMiningCost) window.LegionMiningCost.draw();
+    if (tab === 'recession' && window.LegionRecession) window.LegionRecession.draw();
   };
 
   /* ── SUPPLY IN PROFIT / LOSS ── */

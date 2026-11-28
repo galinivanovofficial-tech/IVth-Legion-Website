@@ -548,7 +548,64 @@ async function getYouTube() {
   });
 }
 
+// ---------- US state recession map ----------
+// FRED (no key): state unemployment rate (xxUR), Philadelphia Fed state coincident index (xxPHCI),
+// national unemployment, real-time Sahm rule and the NBER recession flag. Monthly; classified client-side.
+const US_STATES = [['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],
+  ['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],
+  ['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],
+  ['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],
+  ['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],
+  ['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],
+  ['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],
+  ['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming']];
+const REC_START = '1977-01';
+
+async function fetchFredCsv(ids) {
+  const res = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + ids.join(','), { headers: { 'User-Agent': UA } });
+  if (!res.ok) throw new Error(`FRED ${ids[0]}.. -> HTTP ${res.status}`);
+  const rows = (await res.text()).trim().split('\n').map(l => l.split(','));
+  const head = rows.shift().slice(1);
+  const out = {};
+  head.forEach(k => { out[k] = {}; });
+  for (const r of rows) {
+    const m = r[0].slice(0, 7);
+    if (m < REC_START) continue;
+    head.forEach((k, j) => { const v = parseFloat(r[j + 1]); if (Number.isFinite(v)) out[k][m] = v; });
+  }
+  return out;
+}
+
+async function getStateRecession() {
+  return cached('state-recession', 6 * 3600, async () => {
+    const ids = [...US_STATES.flatMap(([s]) => [s + 'UR', s + 'PHCI']), 'UNRATE', 'SAHMREALTIME', 'USREC'];
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 12) chunks.push(ids.slice(i, i + 12)); // fredgraph returns at most 12 series
+    const parts = await Promise.all(chunks.map(fetchFredCsv));
+    const S = Object.assign({}, ...parts);
+    const last = Object.keys(S.UNRATE).sort().pop();
+    const months = [];
+    for (let y = +REC_START.slice(0, 4), mo = 1; ; mo++) {
+      if (mo > 12) { mo = 1; y++; }
+      const m = `${y}-${String(mo).padStart(2, '0')}`;
+      if (m > last) break;
+      months.push(m);
+    }
+    const col = (k, dp) => months.map(m => (S[k]?.[m] == null ? null : +S[k][m].toFixed(dp)));
+    const states = {};
+    for (const [s, name] of US_STATES) {
+      if (!Object.keys(S[s + 'PHCI'] || {}).length) throw new Error('missing ' + s);
+      states[s] = { name, ur: col(s + 'UR', 1), ci: col(s + 'PHCI', 2) };
+    }
+    return { months, states, us: { ur: col('UNRATE', 1), sahm: col('SAHMREALTIME', 2), usrec: col('USREC', 0) }, updated: new Date().toISOString() };
+  });
+}
+
 export function registerMarketRoutes(router) {
+  router.get('/api/markets/state-recession', async (req, res) => {
+    try { res.json(200, await getStateRecession()); }
+    catch (e) { console.error('[markets] state-recession:', e.message); res.json(502, { error: 'State recession data unavailable' }); }
+  });
   router.get('/api/markets/youtube', async (req, res) => {
     try { res.json(200, await getYouTube()); }
     catch (e) { console.error('[markets] youtube:', e.message); res.json(502, { error: 'Videos are unavailable right now.' }); }
